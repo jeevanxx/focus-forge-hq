@@ -1,5 +1,6 @@
 import { mockSessions, mockTasks } from "@/lib/mock-data";
 import { TrendingUp, Target, Flame, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Analytics = () => {
   const totalMin = mockSessions.reduce((s, x) => s + x.durationMin, 0);
