@@ -65,7 +65,7 @@ export const mockSessions: FocusSession[] = Array.from({ length: 18 }).map((_, i
 }));
 
 export const mockAssistantSuggestions = [
-  "Start with your highest-leverage task: the onboarding redesign.",
-  "You have 3h of deep work scheduled — protect 9–11am.",
-  "Skip the inbox until after your first focus block.",
+  "You've delayed the onboarding redesign for 2 days. Start it now — 25 minutes.",
+  "It's your peak window. Begin deep work before you check email.",
+  "3 high-priority tasks still open. Pick one and lock in.",
 ];
