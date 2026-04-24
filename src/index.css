@@ -1,96 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Focus Forge — warm dark + ember design system.
+   All colors HSL. No ad-hoc colors in components. */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Charcoal forge background */
+    --background: 24 12% 8%;
+    --foreground: 32 25% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 24 14% 11%;
+    --card-foreground: 32 25% 94%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 24 16% 10%;
+    --popover-foreground: 32 25% 94%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Ember orange — primary brand */
+    --primary: 18 92% 58%;
+    --primary-foreground: 24 30% 8%;
+    --primary-glow: 28 100% 64%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 24 12% 16%;
+    --secondary-foreground: 32 20% 88%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 24 10% 14%;
+    --muted-foreground: 30 10% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 38 90% 56%;
+    --accent-foreground: 24 30% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 32 25% 96%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 142 60% 45%;
+    --success-foreground: 32 25% 96%;
 
-    --radius: 0.5rem;
+    --border: 24 12% 18%;
+    --input: 24 12% 16%;
+    --ring: 18 92% 58%;
 
-    --sidebar-background: 0 0% 98%;
+    --radius: 0.875rem;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Gradients */
+    --gradient-ember: linear-gradient(135deg, hsl(18 92% 58%), hsl(32 100% 62%));
+    --gradient-forge: linear-gradient(180deg, hsl(24 14% 12%), hsl(24 16% 8%));
+    --gradient-glow: radial-gradient(circle at 30% 0%, hsl(18 92% 58% / 0.18), transparent 60%);
+    --gradient-card: linear-gradient(160deg, hsl(24 14% 13%), hsl(24 16% 10%));
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-ember: 0 10px 40px -10px hsl(18 92% 58% / 0.45);
+    --shadow-soft: 0 8px 24px -12px hsl(24 30% 0% / 0.6);
+    --shadow-elev: 0 24px 60px -20px hsl(24 30% 0% / 0.7);
+    --shadow-inset: inset 0 1px 0 0 hsl(32 30% 95% / 0.04);
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Motion */
+    --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar tokens (reuses forge palette) */
+    --sidebar-background: 24 16% 9%;
+    --sidebar-foreground: 32 20% 86%;
+    --sidebar-primary: 18 92% 58%;
+    --sidebar-primary-foreground: 24 30% 8%;
+    --sidebar-accent: 24 12% 14%;
+    --sidebar-accent-foreground: 32 25% 94%;
+    --sidebar-border: 24 12% 16%;
+    --sidebar-ring: 18 92% 58%;
   }
 }
 
@@ -99,7 +77,56 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body, #root {
+    @apply h-full;
   }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-image: var(--gradient-glow);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  /* Subtle grain texture */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.7'/></svg>");
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .bg-gradient-ember { background-image: var(--gradient-ember); }
+  .bg-gradient-card { background-image: var(--gradient-card); }
+  .bg-gradient-forge { background-image: var(--gradient-forge); }
+  .shadow-ember { box-shadow: var(--shadow-ember); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-elev { box-shadow: var(--shadow-elev); }
+  .text-ember {
+    background: var(--gradient-ember);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .ring-ember { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), 0 0 24px hsl(var(--primary) / 0.25); }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 }
