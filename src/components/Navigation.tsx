@@ -51,13 +51,16 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="m-3 p-4 rounded-xl bg-gradient-card border border-border shadow-soft">
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Streak</span>
+      <div className="m-3 p-4 rounded-2xl bg-gradient-primary-card border border-primary/30 shadow-elev relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/30 blur-2xl animate-ember-glow" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-2 w-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]" />
+            <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Active streak</span>
+          </div>
+          <div className="font-display text-3xl font-bold tracking-tight">12 days</div>
+          <div className="text-xs text-muted-foreground mt-1 font-medium">Don't break the chain</div>
         </div>
-        <div className="font-display text-2xl font-semibold">12 days</div>
-        <div className="text-xs text-muted-foreground mt-0.5">Don't break the chain</div>
       </div>
     </aside>
   );
