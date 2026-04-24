@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Flame } from "lucide-react";
 
 const colorMap = {
-  ember: "from-primary to-primary-glow",
+  ember: "from-primary to-primary-glow shadow-ember",
   amber: "from-accent to-primary",
   violet: "from-[hsl(270_70%_60%)] to-[hsl(290_70%_65%)]",
   teal: "from-[hsl(170_70%_45%)] to-[hsl(190_70%_55%)]",
@@ -11,27 +11,45 @@ const colorMap = {
 
 export const HabitRow = ({ habit }: { habit: Habit }) => {
   const completed = habit.history.filter(Boolean).length;
+  const pct = Math.round((completed / habit.target) * 100);
+
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-gradient-card hover:border-primary/30 transition-colors">
-      <div className={cn("h-11 w-11 shrink-0 rounded-xl grid place-items-center text-xl bg-gradient-to-br shadow-soft", colorMap[habit.color])}>
+    <div className="group relative flex items-center gap-4 p-4 lg:p-5 rounded-2xl border border-border bg-gradient-card shadow-soft hover:border-border-strong hover:shadow-elev lift overflow-hidden">
+      <div className={cn(
+        "h-12 w-12 shrink-0 rounded-xl grid place-items-center text-xl bg-gradient-to-br ring-1 ring-white/10 group-hover:scale-105 transition-transform",
+        colorMap[habit.color]
+      )}>
         <span>{habit.emoji}</span>
       </div>
+
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm">{habit.name}</div>
-        <div className="flex items-center gap-1.5 mt-0.5">
+        <div className="font-semibold text-sm">{habit.name}</div>
+        <div className="flex items-center gap-1.5 mt-1">
           <Flame className="h-3 w-3 text-primary" />
           <span className="text-xs text-muted-foreground">
-            <span className="text-foreground font-semibold">{habit.streak}</span> day streak · {completed}/{habit.target} this week
+            <span className="text-foreground font-bold">{habit.streak}</span> day streak
+            <span className="opacity-50"> · </span>
+            <span className="text-foreground/80 font-semibold">{completed}/{habit.target}</span> this week
           </span>
         </div>
+        {/* Progress bar */}
+        <div className="mt-2 h-1 rounded-full bg-muted/60 overflow-hidden max-w-[200px]">
+          <div
+            className="h-full bg-gradient-ember rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+        </div>
       </div>
+
       <div className="flex gap-1">
         {habit.history.map((done, i) => (
           <div
             key={i}
             className={cn(
-              "h-6 w-2 rounded-full transition-all",
-              done ? "bg-gradient-to-b from-primary to-primary-glow shadow-ember" : "bg-muted"
+              "h-7 w-2 rounded-full transition-all",
+              done
+                ? "bg-gradient-to-b from-primary to-primary-deep shadow-[0_0_6px_hsl(var(--primary)/0.5)]"
+                : "bg-muted border border-border"
             )}
             title={done ? "Done" : "Missed"}
           />
