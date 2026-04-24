@@ -28,7 +28,7 @@ export interface Habit {
 
 export interface FocusSession {
   id: string;
-  date: string; // ISO
+  date: string; // ISO datetime — includes hour for window analysis
   durationMin: number;
   taskTitle?: string;
 }
@@ -57,12 +57,18 @@ export const mockHabits: Habit[] = [
 ];
 
 const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-export const mockSessions: FocusSession[] = Array.from({ length: 18 }).map((_, i) => ({
-  id: `s${i}`,
-  date: iso(addDays(weekStart, i % 7)),
-  durationMin: [25, 25, 50, 25, 90, 50, 25][i % 7],
-  taskTitle: ["Strategy memo", "Onboarding", "Code review", "Deep work", "Sprint plan"][i % 5],
-}));
+// Session hours skewed to mornings (9-11am peak) for realistic best-window detection.
+const sessionHours = [9, 10, 9, 14, 10, 16, 9, 11, 10, 15, 9, 10, 8, 11, 14, 9, 10, 16];
+export const mockSessions: FocusSession[] = Array.from({ length: 18 }).map((_, i) => {
+  const day = addDays(weekStart, i % 7);
+  day.setHours(sessionHours[i], 0, 0, 0);
+  return {
+    id: `s${i}`,
+    date: day.toISOString(),
+    durationMin: [25, 25, 50, 25, 90, 50, 25][i % 7],
+    taskTitle: ["Strategy memo", "Onboarding", "Code review", "Deep work", "Sprint plan"][i % 5],
+  };
+});
 
 export const mockAssistantSuggestions = [
   "You've delayed the onboarding redesign for 2 days. Start it now — 25 minutes.",
