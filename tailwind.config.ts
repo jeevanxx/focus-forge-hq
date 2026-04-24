@@ -77,6 +77,10 @@ export default {
           "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--primary) / 0.5)" },
           "50%": { boxShadow: "0 0 0 16px hsl(var(--primary) / 0)" },
         },
+        "ember-glow": {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.05)" },
+        },
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-6px)" },
@@ -85,18 +89,34 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.96)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
         "shimmer": {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        "shine": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(200%)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "ember-pulse": "ember-pulse 2.4s ease-out infinite",
+        "ember-glow": "ember-glow 3s ease-in-out infinite",
         "float": "float 5s ease-in-out infinite",
         "fade-up": "fade-up 0.5s var(--ease-out-expo) both",
+        "fade-in": "fade-in 0.4s ease-out both",
+        "scale-in": "scale-in 0.35s var(--ease-out-expo) both",
         "shimmer": "shimmer 2.5s linear infinite",
+        "shine": "shine 2.2s ease-in-out infinite",
       },
     },
   },
