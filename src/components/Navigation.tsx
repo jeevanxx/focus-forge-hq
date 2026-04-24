@@ -31,17 +31,20 @@ export const Sidebar = () => {
             end={to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
-                "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-sidebar-foreground shadow-soft ring-1 ring-border"
+                "press relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all overflow-hidden",
+                "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                isActive && "bg-sidebar-accent text-sidebar-foreground shadow-soft border border-border-strong"
               )
             }
           >
             {({ isActive }) => (
               <>
-                <Icon className={cn("h-4 w-4", isActive && "text-primary")} strokeWidth={2} />
-                <span className="font-medium">{label}</span>
-                {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-ember" />}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-r bg-gradient-ember shadow-glow-primary" />
+                )}
+                <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-primary" : "")} strokeWidth={isActive ? 2.5 : 2} />
+                <span className={cn("font-medium", isActive && "font-semibold")}>{label}</span>
+                {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />}
               </>
             )}
           </RouterNavLink>
@@ -88,12 +91,15 @@ export const MobileBottomNav = () => {
               to={to}
               end={to === "/"}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all",
+                "press relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
+              {isActive && (
+                <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary shadow-glow-primary" />
+              )}
               <Icon className="h-[18px] w-[18px]" strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] font-medium">{label}</span>
+              <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>{label}</span>
             </RouterNavLink>
           );
         })}
