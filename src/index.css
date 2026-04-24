@@ -10,8 +10,8 @@
 @layer base {
   :root {
     /* Deeper, richer charcoal forge background */
-    --background: 24 14% 6%;
-    --foreground: 32 30% 95%;
+    --background: 24 16% 4%;
+    --foreground: 32 30% 96%;
 
     /* Layered surfaces for depth */
     --surface-1: 24 14% 9%;   /* base cards */
