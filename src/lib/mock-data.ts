@@ -28,7 +28,7 @@ export interface Habit {
 
 export interface FocusSession {
   id: string;
-  date: string; // ISO
+  date: string; // ISO datetime — includes hour for window analysis
   durationMin: number;
   taskTitle?: string;
 }
