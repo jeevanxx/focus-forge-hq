@@ -14,7 +14,7 @@ const Habits = () => {
           <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Discipline</div>
           <h1 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight">Habits</h1>
         </div>
-        <button className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:opacity-95">
+        <button className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:opacity-95 font-bold bg-secondary-foreground">
           <Plus className="h-4 w-4" /> <span className="hidden sm:inline">New habit</span>
         </button>
       </div>
