@@ -13,11 +13,14 @@ const CalendarPage = () => {
   const selectedTasks = mockTasks.filter((t) => isSameDay(new Date(t.dueDate), selected));
 
   return (
-    <div className="px-5 lg:px-10 py-6 lg:py-8 max-w-[1400px] mx-auto">
-      <div className="flex items-end justify-between mb-6">
+    <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1400px] mx-auto animate-fade-in">
+      <div className="flex items-end justify-between mb-8">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Schedule</div>
-          <h1 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight">{format(anchor, "MMMM yyyy")}</h1>
+          <div className="inline-flex items-center gap-2 mb-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />
+            <span className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground font-bold">Schedule</span>
+          </div>
+          <h1 className="font-display text-4xl lg:text-5xl font-bold tracking-tight">{format(anchor, "MMMM yyyy")}</h1>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setAnchor(addDays(anchor, -7))} className="h-9 w-9 grid place-items-center rounded-lg border border-border hover:bg-secondary">
