@@ -24,14 +24,17 @@ const Tasks = () => {
   const toggle = (id: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
 
   return (
-    <div className="px-5 lg:px-10 py-6 lg:py-8 max-w-[1100px] mx-auto">
-      <div className="flex items-end justify-between mb-6">
+    <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
+      <div className="flex items-end justify-between mb-8">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Backlog</div>
-          <h1 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight">Tasks</h1>
+          <div className="inline-flex items-center gap-2 mb-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />
+            <span className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground font-bold">Backlog</span>
+          </div>
+          <h1 className="font-display text-4xl lg:text-5xl font-bold tracking-tight">Tasks</h1>
         </div>
-        <button className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:opacity-95">
-          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">New task</span>
+        <button className="press inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:shadow-ember-lg hover:-translate-y-0.5 transition-all">
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New task</span>
         </button>
       </div>
 
