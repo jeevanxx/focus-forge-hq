@@ -65,23 +65,33 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+  const safeId = id.replace(/[^a-zA-Z0-9_:-]/g, "");
+
+  const styleContent = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    if (!color) return null;
+    const safeKey = key.replace(/[^a-zA-Z0-9_:-]/g, "");
+    const safeColor = color.replace(/[;}]/g, "");
+    return `  --color-${safeKey}: ${safeColor};`;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
-          )
-          .join("\n"),
+    )
+    .join("\n");
+
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        // Remove all < characters to prevent <style> tag escaping and XSS.
+        // We also sanitized keys and values above to prevent CSS injection.
+        __html: styleContent.replace(/</g, ""),
       }}
     />
   );
