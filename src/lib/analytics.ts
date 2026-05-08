@@ -78,23 +78,68 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * BOLT OPTIMIZATION:
+ * Changed from O(N * W) to O(N) by using a single pass over sessions.
+ * Reduces redundant date formatting and parsing.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekEnd = addDays(weekStart, 7);
+
+  // Pre-generate the 7 days of the week for the result array and lookup
+  const dayMap = new Map<string, number>();
+  const days: { day: (typeof WEEK_LABELS)[number]; date: string }[] = [];
+
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    dayMap.set(dateKey, 0);
+    days.push({ day: WEEK_LABELS[i], date: dateKey });
+  }
+
+  // Single pass over sessions to accumulate minutes
+  for (const s of sessions) {
+    const sessionDate = parseISO(s.date);
+    // Boundary check before expensive formatting
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dateKey = format(sessionDate, "yyyy-MM-dd");
+      const current = dayMap.get(dateKey);
+      if (current !== undefined) {
+        dayMap.set(dateKey, current + s.durationMin);
+      }
+    }
+  }
+
+  return days.map(({ day, date }) => ({
+    day,
+    date,
+    minutes: dayMap.get(date) || 0,
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * BOLT OPTIMIZATION:
+ * Direct single-pass sum instead of full weekly breakdown generation.
+ */
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  return sessions.reduce((total, s) => {
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      return total + s.durationMin;
+    }
+    return total;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
