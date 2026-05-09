@@ -65,23 +65,27 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = id.replace(/[^\w:-]/g, "");
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = key.replace(/[^\w:-]/g, "");
+    return color ? `  --color-${safeKey}: ${color};` : null;
   })
   .join("\n")}
 }
 `,
           )
-          .join("\n"),
+          .join("\n")
+          .replace(/</g, "&lt;"),
       }}
     />
   );
