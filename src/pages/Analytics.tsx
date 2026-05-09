@@ -27,12 +27,12 @@ const Analytics = () => {
   const now = new Date();
 
   const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
+  const totalMin = weekly.reduce((sum, day) => sum + day.minutes, 0);
   const completion = getCompletionRate(mockTasks);
   const delayed = getDelayedHighPriority(mockTasks, now);
   const window = getBestFocusWindow(mockSessions);
   const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
+  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now, totalMin);
   const next = getNextBestAction(mockTasks, now);
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
