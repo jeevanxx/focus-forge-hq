@@ -83,18 +83,63 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekEnd = addDays(weekStart, 7);
+  const startMs = weekStart.getTime();
+  const endMs = weekEnd.getTime();
+
+  // Initialize days
+  const dailyData = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Create a map for O(1) lookup by dateKey
+  const dateMap = new Map<string, DailyFocus>();
+  for (const d of dailyData) {
+    dateMap.set(d.date, d);
+  }
+
+  // Single pass optimization: O(N)
+  // We avoid redundant string formatting and parsing in the inner loop
+  for (const s of sessions) {
+    const sDate = parseISO(s.date);
+    const sTime = sDate.getTime();
+
+    // Quick boundary check before more expensive operations
+    if (sTime >= startMs && sTime < endMs) {
+      const dateKey = format(sDate, "yyyy-MM-dd");
+      const dayData = dateMap.get(dateKey);
+      if (dayData) {
+        dayData.minutes += s.durationMin;
+      }
+    }
+  }
+
+  return dailyData;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+  const startMs = weekStart.getTime();
+  const endMs = weekEnd.getTime();
+
+  let total = 0;
+  for (const s of sessions) {
+    const sTime = parseISO(s.date).getTime();
+    if (sTime >= startMs && sTime < endMs) {
+      total += s.durationMin;
+    }
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 
@@ -189,12 +234,14 @@ export const getProductivityScore = (
   tasks: Task[],
   sessions: FocusSession[],
   habits: Habit[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  weeklyFocusTotal?: number
 ): ProductivityScore => {
   const completion = getCompletionRate(tasks) / 100; // 0-1
+  const totalFocus = weeklyFocusTotal ?? getWeeklyFocusTotal(sessions, now);
   const focusProgress = Math.min(
     1,
-    getWeeklyFocusTotal(sessions, now) / WEEKLY_FOCUS_GOAL_MIN
+    totalFocus / WEEKLY_FOCUS_GOAL_MIN
   );
   const consistency = getStreakConsistency(habits);
   const delayedCount = getDelayedHighPriority(tasks, now).count;
