@@ -1,0 +1,4 @@
+## 2025-05-14 - [CSS Injection via dangerouslySetInnerHTML]
+**Vulnerability:** Dynamic injection of unvalidated IDs and color values into a `<style>` tag using `dangerouslySetInnerHTML` in `src/components/ui/chart.tsx`.
+**Learning:** React's `dangerouslySetInnerHTML` bypasses the built-in XSS protection. When used within a `<style>` tag, it allows an attacker to inject arbitrary CSS rules if the inputs (like chart IDs or configuration keys) are not properly sanitized. This could lead to data exfiltration (via CSS selectors and background-image URLs) or UI redressing.
+**Prevention:** Always sanitize any dynamic data before injecting it into a `<style>` tag. Use a whitelist of allowed characters for identifiers and strictly validate color values to block characters that can break out of CSS rules (like `;`, `{`, `}`, `\`, `<`).
