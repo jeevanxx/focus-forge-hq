@@ -5,6 +5,10 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    "import.meta.env.VITE_SUPABASE": JSON.stringify(process.env.SUPABASE ?? ""),
+    "import.meta.env.VITE_SUPABASE_ANON": JSON.stringify(process.env.SUPABASEANON ?? ""),
+  },
   server: {
     host: "::",
     port: 8080,
