@@ -4,14 +4,23 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/AppShell";
+import { AuthProvider } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Analytics from "./pages/Analytics";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
+
+const protectedShell = (node: React.ReactNode) => (
+  <ProtectedRoute>
+    <AppShell>{node}</AppShell>
+  </ProtectedRoute>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -19,50 +28,18 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <AppShell>
-                <Dashboard />
-              </AppShell>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <AppShell>
-                <CalendarPage />
-              </AppShell>
-            }
-          />
-          <Route
-            path="/tasks"
-            element={
-              <AppShell>
-                <Tasks />
-              </AppShell>
-            }
-          />
-          <Route
-            path="/habits"
-            element={
-              <AppShell>
-                <Habits />
-              </AppShell>
-            }
-          />
-          <Route
-            path="/analytics"
-            element={
-              <AppShell>
-                <Analytics />
-              </AppShell>
-            }
-          />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={protectedShell(<Dashboard />)} />
+            <Route path="/calendar" element={protectedShell(<CalendarPage />)} />
+            <Route path="/tasks" element={protectedShell(<Tasks />)} />
+            <Route path="/habits" element={protectedShell(<Habits />)} />
+            <Route path="/analytics" element={protectedShell(<Analytics />)} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
