@@ -1,3 +1,13 @@
-// Re-export the auto-generated Supabase client so app code can import from "@/lib/supabase".
-// The actual client lives in src/integrations/supabase/client.ts (managed by Lovable Cloud).
-export { supabase } from "@/integrations/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+const SUPABASE_URL = import.meta.env.SUPABASE as string;
+const SUPABASE_ANON_KEY = import.meta.env.SUPABASEANON as string;
+
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
