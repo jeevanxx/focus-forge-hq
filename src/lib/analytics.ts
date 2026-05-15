@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,14 +83,35 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekStartTime = weekStart.getTime();
+
+  // Initialize result array for the 7 days of the week
+  const days: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Optimized O(N) single-pass iteration
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const sDate = parseISO(s.date);
+    const sTime = sDate.getTime();
+
+    // Fast range check before more expensive calendar day calculation.
+    // Use a 1-day buffer to account for timezone shifts between UTC and local time.
+    if (sTime >= weekStartTime - 86400000) {
+      const diff = differenceInCalendarDays(sDate, weekStart);
+      if (diff >= 0 && diff < 7) {
+        days[diff].minutes += s.durationMin;
+      }
+    }
+  }
+
+  return days;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
