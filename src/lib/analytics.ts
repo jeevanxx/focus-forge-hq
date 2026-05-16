@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,18 +83,43 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Initialize the result array for each day of the week
+  const days: DailyFocus[] = WEEK_LABELS.map((day, i) => ({
+    day,
+    date: format(addDays(weekStart, i), "yyyy-MM-dd"),
+    minutes: 0,
+  }));
+
+  // Single-pass optimization: O(N) instead of O(N * 7)
+  // Also avoids repeated format() calls for each session
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dayIdx = differenceInCalendarDays(sessionDate, weekStart);
+      if (dayIdx >= 0 && dayIdx < 7) {
+        days[dayIdx].minutes += session.durationMin;
+      }
+    }
+  }
+
+  return days;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Single-pass optimization: O(N)
+  return sessions.reduce((total, session) => {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      return total + session.durationMin;
+    }
+    return total;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
