@@ -78,23 +78,62 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Optimized weekly focus calculation.
+ * Replaces O(N * 7) nested iteration with O(N) single-pass iteration.
+ * Avoids expensive parseISO/format calls inside the loop using string slicing.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Initialize daily totals map
+  const dailyTotals: Record<string, number> = {};
+  const weekDates: string[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(weekStart, i);
+    const dateKey = format(d, "yyyy-MM-dd");
+    weekDates.push(dateKey);
+    dailyTotals[dateKey] = 0;
+  }
+
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+
+  // Single pass over sessions
+  for (const s of sessions) {
+    // Quick string comparison for date boundary check
+    const sessionDate = s.date.slice(0, 10);
+    if (sessionDate >= weekStartStr && sessionDate < weekEndStr) {
+      if (dailyTotals[sessionDate] !== undefined) {
+        dailyTotals[sessionDate] += s.durationMin;
+      }
+    }
+  }
+
+  return WEEK_LABELS.map((day, i) => ({
+    day,
+    date: weekDates[i],
+    minutes: dailyTotals[weekDates[i]],
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * Optimized weekly focus total.
+ * Reuses the optimized O(N) getWeeklyFocus.
+ */
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number => {
+  const weekly = getWeeklyFocus(sessions, now);
+  let total = 0;
+  for (let i = 0; i < weekly.length; i++) {
+    total += weekly[i].minutes;
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 
