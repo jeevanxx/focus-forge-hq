@@ -22,20 +22,35 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize 'now' reference for memoization
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  const {
+    weekly,
+    totalMin,
+    completion,
+    delayed,
+    window,
+    avgSession,
+    score,
+    next,
+  } = useMemo(() => {
+    return {
+      weekly: getWeeklyFocus(mockSessions, now),
+      totalMin: getWeeklyFocusTotal(mockSessions, now),
+      completion: getCompletionRate(mockTasks),
+      delayed: getDelayedHighPriority(mockTasks, now),
+      window: getBestFocusWindow(mockSessions),
+      avgSession: getAverageSessionLength(mockSessions),
+      score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+      next: getNextBestAction(mockTasks, now),
+    };
+  }, [now]);
 
-  const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
+  const maxBar = useMemo(() => Math.max(...weekly.map((d) => d.minutes), 1), [weekly]);
   const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
 
   const tierColor =

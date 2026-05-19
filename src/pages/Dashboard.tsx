@@ -4,7 +4,7 @@ import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -32,23 +32,37 @@ const MiniStat = ({
 );
 
 const Dashboard = () => {
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const [tasks, setTasks] = useState(mockTasks);
-  const todayTasks = tasks.filter((t) => t.dueDate === format(today, "yyyy-MM-dd"));
-  const done = todayTasks.filter((t) => t.done).length;
-  const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
-  const focusGoal = 180;
-  const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
 
-  // Active task = first incomplete, sorted by priority high → med → low
-  const priorityOrder = { high: 0, med: 1, low: 2 };
-  const activeTask = [...todayTasks]
-    .filter((t) => !t.done)
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
+  const { todayTasks, done, completion, todayMin, focusPct, activeTask, remainingTasks } = useMemo(() => {
+    const todayStr = format(today, "yyyy-MM-dd");
+    const tTasks = tasks.filter((t) => t.dueDate === todayStr);
+    const dCount = tTasks.filter((t) => t.done).length;
+    const comp = tTasks.length ? Math.round((dCount / tTasks.length) * 100) : 0;
+    const tMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
+    const focusGoal = 180;
+    const fPct = Math.min(100, Math.round((tMin / focusGoal) * 100));
 
-  // Remaining tasks (excluding active)
-  const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+    // Active task = first incomplete, sorted by priority high → med → low
+    const priorityOrder = { high: 0, med: 1, low: 2 };
+    const aTask = [...tTasks]
+      .filter((t) => !t.done)
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
+
+    // Remaining tasks (excluding active)
+    const rTasks = tTasks.filter((t) => t.id !== aTask?.id);
+
+    return {
+      todayTasks: tTasks,
+      done: dCount,
+      completion: comp,
+      todayMin: tMin,
+      focusPct: fPct,
+      activeTask: aTask,
+      remainingTasks: rTasks
+    };
+  }, [tasks, today]);
 
   const toggle = (id: string) =>
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
