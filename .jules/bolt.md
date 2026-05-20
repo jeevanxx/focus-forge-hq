@@ -1,0 +1,3 @@
+## 2025-05-22 - [Optimizing Date Aggregations]
+**Learning:** In analytics logic, performing `format(parseISO(date))` inside a loop over large datasets (e.g., 10k+ items) is a massive performance bottleneck. String slicing (`date.slice(0, 10)`) for ISO date comparison is significantly faster and avoids the overhead of date object instantiation and formatting.
+**Action:** Always prefer string comparison or timestamp comparison for date filtering in large loops. Use a single-pass `Map` or hash map for aggregations instead of nested `.filter().reduce()` calls to reduce complexity from O(N*M) to O(N+M).
