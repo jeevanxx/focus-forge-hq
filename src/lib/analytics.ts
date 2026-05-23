@@ -83,12 +83,19 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const dayMap = new Map<string, number>();
+
+  // ⚡ Bolt Optimization: Single pass O(N) aggregation using a Map.
+  // Note: Still using parseISO/format to ensure local timezone correctness as per original logic.
+  for (const s of sessions) {
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    dayMap.set(dateKey, (dayMap.get(dateKey) || 0) + s.durationMin);
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
+    const minutes = dayMap.get(dateKey) || 0;
     return { day, date: dateKey, minutes };
   });
 };
