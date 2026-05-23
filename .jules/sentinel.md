@@ -1,0 +1,4 @@
+## 2025-05-22 - CSS Injection in Chart Component
+**Vulnerability:** The shadcn/ui Chart component was using `dangerouslySetInnerHTML` to inject a dynamic `<style>` tag without sanitizing the chart `id`, configuration keys, or color values.
+**Learning:** Dynamic CSS generation in React using `dangerouslySetInnerHTML` is a common vector for CSS injection if inputs are not strictly validated or sanitized. Malicious actors could "break out" of CSS rules to inject arbitrary styles or even execute JavaScript in some contexts.
+**Prevention:** Always sanitize dynamic IDs used in CSS selectors using a whitelist (e.g., `/[^a-zA-Z0-9-_]/g`). Strip dangerous characters like `;{}<>\\` from dynamic CSS values and property names. Use quoted attribute selectors (e.g., `[data-chart="${id}"]`) to prevent selector breakouts.
