@@ -83,18 +83,52 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+  const weekEnd = addDays(weekStart, 7);
+
+  // Pre-calculate the 7 days of the week for the result structure
+  const weekDays = WEEK_LABELS.map((day, i) => {
+    const d = addDays(weekStart, i);
+    return { day, date: format(d, "yyyy-MM-dd"), minutes: 0 };
   });
+
+  // Create a lookup map for the dates in this week
+  const dateMap = new Map(weekDays.map(wd => [wd.date, wd]));
+
+  // Single pass optimization: O(N) instead of O(7N)
+  // We only parse and format sessions that fall within the approximate week range
+  const startTime = weekStart.getTime() - 86400000; // 1 day buffer for TZs
+  const endTime = weekEnd.getTime() + 86400000;
+
+  for (const s of sessions) {
+    const sDate = parseISO(s.date);
+    const sTime = sDate.getTime();
+
+    if (sTime >= startTime && sTime <= endTime) {
+      const dateKey = format(sDate, "yyyy-MM-dd");
+      const entry = dateMap.get(dateKey);
+      if (entry) {
+        entry.minutes += s.durationMin;
+      }
+    }
+  }
+
+  return weekDays;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Direct O(N) sum is faster than generating the full breakdown
+  let total = 0;
+  for (const s of sessions) {
+    const d = parseISO(s.date);
+    if (d >= weekStart && d < weekEnd) {
+      total += s.durationMin;
+    }
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 
