@@ -1,0 +1,3 @@
+## 2025-05-22 - Single-pass Date Aggregation Optimization
+**Learning:** Functions that aggregate data by day of week (like `getWeeklyFocus`) often fall into an $O(7N)$ pattern where they filter the entire dataset for each day. For large datasets (e.g., thousands of focus sessions), this becomes a major bottleneck. Replacing this with a single-pass $O(N)$ approach using a `Map` for aggregation and early date-range filtering yields significant performance gains.
+**Action:** Always prefer single-pass aggregation with hash maps when grouping by dates or categories. Avoid calling `format()` or `parseISO()` repeatedly inside loops if simple date boundary comparisons suffice for filtering.
