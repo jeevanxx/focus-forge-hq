@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,18 +83,47 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Initialize result array for the 7 days of the week
+  const dailyMetrics = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Single-pass O(N) iteration instead of O(7N)
+  // We avoid calling format() on every session by using day bucketing
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    const dayIndex = differenceInCalendarDays(sessionDate, weekStart);
+
+    // Check if session falls within this specific week (0-6 days from weekStart)
+    if (dayIndex >= 0 && dayIndex < 7) {
+      dailyMetrics[dayIndex].minutes += session.durationMin;
+    }
+  }
+
+  return dailyMetrics;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  // Direct single-pass sum for better performance than calling getWeeklyFocus().reduce()
+  // as it avoids object creation and extra array iterations
+  return sessions.reduce((sum, s) => {
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate <= weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
