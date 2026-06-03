@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -78,23 +78,56 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * BOLT OPTIMIZATION:
+ * Optimized from O(7N) to O(N) using a single-pass iteration.
+ * Avoids repeated expensive format/parseISO calls inside the loop.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const dailyMinutes = new Array(7).fill(0);
+
+  // Single pass O(N) to group sessions by day
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    const dayIndex = differenceInCalendarDays(sessionDate, weekStart);
+
+    // Only process if it falls within the current week [0, 6]
+    if (dayIndex >= 0 && dayIndex < 7) {
+      dailyMinutes[dayIndex] += session.durationMin;
+    }
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: dailyMinutes[i],
+    };
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * BOLT OPTIMIZATION:
+ * Optimized to a single-pass O(N) sum with direct date range filtering.
+ * Prevents unnecessary intermediate object creation from getWeeklyFocus().
+ */
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  return sessions.reduce((total, s) => {
+    const d = parseISO(s.date);
+    if (d >= weekStart && d < weekEnd) {
+      return total + s.durationMin;
+    }
+    return total;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
