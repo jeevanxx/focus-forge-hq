@@ -65,17 +65,24 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize id to allow only alphanumeric, dashes, underscores, colons, and dots.
+  // This supports useId (colons) while preventing CSS selector breakout.
+  const safeId = id.replace(/[^a-zA-Z0-9-_:.]/g, "").replace(/"/g, '\\"');
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    // Sanitize key (CSS variable name) and color value to prevent injection.
+    const safeKey = key.replace(/[^a-zA-Z0-9-_]/g, "");
+    const safeColor = color?.replace(/[;{}<>\\]/g, "");
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
