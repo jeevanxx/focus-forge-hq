@@ -1,0 +1,4 @@
+## 2025-05-22 - [HIGH] CSS Injection in ChartStyle component
+**Vulnerability:** The `ChartStyle` component in `src/components/ui/chart.tsx` was directly injecting `id`, `config` keys, and `color` values into a `<style>` tag using `dangerouslySetInnerHTML`. This allowed an attacker to break out of the CSS selector/rule and inject arbitrary CSS.
+**Learning:** Even within seemingly safe contexts like CSS variables, unsanitized user-controlled input can lead to injection vulnerabilities if injected directly into a `<style>` block.
+**Prevention:** Always sanitize any dynamic input that is part of a CSS block. Use regex to whitelist safe characters for selectors and keys, and strip or escape dangerous characters (like `; { } [ ] \ " < >`) from values. Quoting attribute selectors also adds a layer of defense.
