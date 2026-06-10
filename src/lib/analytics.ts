@@ -83,18 +83,43 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+  const weekEnd = addDays(weekStart, 7);
+  const dailyMinutes = new Array(7).fill(0);
+
+  // Single-pass O(N) iteration instead of O(N * 7)
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      // Adjust Sunday (0) to index 6, Monday (1) to index 0, etc.
+      const dayIndex = (sessionDate.getDay() + 6) % 7;
+      dailyMinutes[dayIndex] += session.durationMin;
+    }
+  }
+
+  return WEEK_LABELS.map((day, i) => ({
+    day,
+    date: format(addDays(weekStart, i), "yyyy-MM-dd"),
+    minutes: dailyMinutes[i],
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+  let total = 0;
+
+  // Single-pass O(N) iteration instead of derived weekly array
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      total += session.durationMin;
+    }
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 

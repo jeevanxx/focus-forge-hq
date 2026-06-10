@@ -27,7 +27,7 @@ const Analytics = () => {
   const now = new Date();
 
   const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
+  const totalMin = weekly.reduce((sum, day) => sum + day.minutes, 0);
   const completion = getCompletionRate(mockTasks);
   const delayed = getDelayedHighPriority(mockTasks, now);
   const window = getBestFocusWindow(mockSessions);
