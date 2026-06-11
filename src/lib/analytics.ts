@@ -83,18 +83,53 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimization: Pre-initialize buckets to avoid filtering the sessions array 7 times.
+  // This reduces complexity from O(N * 7) to O(N) where N is sessions.length.
+  const dailyMinutes: Record<string, number> = {};
+  const days = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    dailyMinutes[dateKey] = 0;
+    return { day, date: dateKey };
   });
+
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dateKey = format(sessionDate, "yyyy-MM-dd");
+      if (dateKey in dailyMinutes) {
+        dailyMinutes[dateKey] += session.durationMin;
+      }
+    }
+  }
+
+  return days.map((d) => ({
+    ...d,
+    minutes: dailyMinutes[d.date],
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * Calculates total focus minutes for the current week.
+ * Optimized for single-pass O(N) performance.
+ */
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  return sessions.reduce((sum, s) => {
+    const d = parseISO(s.date);
+    if (d >= weekStart && d < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
