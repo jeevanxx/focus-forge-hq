@@ -27,7 +27,8 @@ const Analytics = () => {
   const now = new Date();
 
   const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
+  // Optimization: Derive totalMin from the weekly array to avoid a second pass over mockSessions.
+  const totalMin = weekly.reduce((acc, day) => acc + day.minutes, 0);
   const completion = getCompletionRate(mockTasks);
   const delayed = getDelayedHighPriority(mockTasks, now);
   const window = getBestFocusWindow(mockSessions);
