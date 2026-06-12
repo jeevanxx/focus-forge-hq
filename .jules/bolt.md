@@ -1,0 +1,3 @@
+## 2026-06-06 - Optimized Analytics Complexity from O(K*N) to O(N)
+**Learning:** The previous implementation of `getWeeklyFocus` performed a full pass over the sessions dataset for every day of the week (7 times), resulting in an O(7*N) complexity. By utilizing a `Map` for single-pass grouping, we achieve O(N). Furthermore, expensive date operations (`parseISO`, `format`) were being called inside nested loops; moving to a single-pass grouping minimizes these calls significantly.
+**Action:** Always prefer Map-based grouping for multi-category data aggregation over repeated `.filter().reduce()` chains on the same dataset.
