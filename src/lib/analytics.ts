@@ -83,18 +83,46 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimized O(N) grouping: Single pass over sessions instead of O(7*N)
+  const dailyTotals = new Map<string, number>();
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    // Only process sessions within the target week range
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const key = format(sessionDate, "yyyy-MM-dd");
+      dailyTotals.set(key, (dailyTotals.get(key) || 0) + session.durationMin);
+    }
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: dateKey,
+      minutes: dailyTotals.get(dateKey) || 0,
+    };
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimized O(N) sum: Direct pass without intermediate breakdown structures
+  return sessions.reduce((total, session) => {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      return total + session.durationMin;
+    }
+    return total;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
