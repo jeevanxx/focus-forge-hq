@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { mockSessions, mockTasks, mockHabits } from "@/lib/mock-data";
 import {
   getWeeklyFocus,
@@ -24,19 +25,26 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize 'now' reference to prevent cache invalidation on every render
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  // Memoize expensive analytics to prevent redundant O(N) calculations on re-renders
+  const { weekly, completion, delayed, window, avgSession, score, next } = useMemo(() => ({
+    weekly: getWeeklyFocus(mockSessions, now),
+    completion: getCompletionRate(mockTasks),
+    delayed: getDelayedHighPriority(mockTasks, now),
+    window: getBestFocusWindow(mockSessions),
+    avgSession: getAverageSessionLength(mockSessions),
+    score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+    next: getNextBestAction(mockTasks, now),
+  }), [now]);
 
-  const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
-  const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
+  // Derive totalMin from already calculated weekly data to avoid extra O(N) pass
+  const totalMin = useMemo(() => weekly.reduce((s, x) => s + x.minutes, 0), [weekly]);
+  const maxBar = useMemo(() => Math.max(...weekly.map((d) => d.minutes), 1), [weekly]);
+  const goalPct = useMemo(() =>
+    Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100))
+  , [totalMin]);
 
   const tierColor =
     score.tier === "Forging"
