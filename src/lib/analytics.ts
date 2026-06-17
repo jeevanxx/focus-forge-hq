@@ -83,18 +83,41 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+
+  // Optimization: O(N) single-pass aggregation using a Map.
+  // This avoids iterating over the entire sessions array 7 times (O(N*7))
+  // and reduces expensive date parsing/formatting from 7x per session to 1x.
+  const sessionMap = new Map<string, number>();
+  for (const s of sessions) {
+    const key = format(parseISO(s.date), "yyyy-MM-dd");
+    sessionMap.set(key, (sessionMap.get(key) || 0) + s.durationMin);
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, date: dateKey, minutes: sessionMap.get(dateKey) || 0 };
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimization: O(N) direct sum with date range comparison.
+  // This avoids the overhead of date formatting and daily breakdown array creation
+  // when only the aggregate total is needed.
+  return sessions.reduce((sum, s) => {
+    const date = parseISO(s.date);
+    if (date >= weekStart && date < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
