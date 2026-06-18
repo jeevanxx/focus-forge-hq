@@ -1,0 +1,3 @@
+## 2025-05-22 - Optimize analytics engine to O(N) complexity
+**Learning:** Avoid nested loops where the inner loop performs expensive operations (like `parseISO` or `format`) on the same large dataset multiple times. Even with small constant outer loops (e.g., 7 days), the cumulative overhead of redundant parsing/formatting creates significant bottlenecks. Derive aggregate metrics from already-calculated arrays in the UI instead of re-processing raw source data.
+**Action:** Use Map-based bucketing for single-pass data grouping. Stabilize date references with `useMemo` in dashboards to prevent cascading re-calculations of expensive metrics.
