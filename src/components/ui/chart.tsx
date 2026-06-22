@@ -65,17 +65,25 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize ID and key to prevent attribute breakout and rule injection
+  const sanitizeId = (s: string) => s.replace(/[^a-zA-Z0-9-_.]/g, "");
+
+  // Sanitize CSS values to prevent declaration breakout
+  const sanitizeCSSValue = (v: string) => v.replace(/[;{}[\]"':<>\\]/g, "");
+
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color ? `  --color-${sanitizeId(key)}: ${sanitizeCSSValue(color)};` : null;
   })
   .join("\n")}
 }
