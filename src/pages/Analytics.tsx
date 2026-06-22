@@ -1,7 +1,7 @@
+import { useMemo } from "react";
 import { mockSessions, mockTasks, mockHabits } from "@/lib/mock-data";
 import {
   getWeeklyFocus,
-  getWeeklyFocusTotal,
   getCompletionRate,
   getDelayedHighPriority,
   getBestFocusWindow,
@@ -24,16 +24,27 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const Analytics = () => {
-  const now = new Date();
+  // ⚡ Performance: Stabilize "now" to prevent re-calculating on every render
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  // ⚡ Performance: Group all analytics in a single useMemo block to minimize hook overhead.
+  // Including all data sources in dependencies for future-proofing.
+  const { weekly, totalMin, completion, delayed, window, avgSession, score, next } = useMemo(() => {
+    const weekly = getWeeklyFocus(mockSessions, now);
+    const totalMin = weekly.reduce((sum, d) => sum + d.minutes, 0); // Derived from weekly to save O(N) pass
+
+    return {
+      weekly,
+      totalMin,
+      completion: getCompletionRate(mockTasks),
+      delayed: getDelayedHighPriority(mockTasks, now),
+      window: getBestFocusWindow(mockSessions),
+      avgSession: getAverageSessionLength(mockSessions),
+      score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+      next: getNextBestAction(mockTasks, now),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, mockSessions, mockTasks, mockHabits]);
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
   const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
