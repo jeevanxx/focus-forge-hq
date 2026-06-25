@@ -1,7 +1,7 @@
 import { mockSessions, mockTasks, mockHabits } from "@/lib/mock-data";
+import { useMemo } from "react";
 import {
   getWeeklyFocus,
-  getWeeklyFocusTotal,
   getCompletionRate,
   getDelayedHighPriority,
   getBestFocusWindow,
@@ -24,16 +24,23 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize 'now' to prevent unnecessary recalculations on every render
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  // Memoize expensive analytics computations and derive total from weekly data
+  const { weekly, totalMin, completion, delayed, window, avgSession, score, next } = useMemo(() => {
+    const weeklyData = getWeeklyFocus(mockSessions, now);
+    return {
+      weekly: weeklyData,
+      totalMin: weeklyData.reduce((acc, day) => acc + day.minutes, 0),
+      completion: getCompletionRate(mockTasks),
+      delayed: getDelayedHighPriority(mockTasks, now),
+      window: getBestFocusWindow(mockSessions),
+      avgSession: getAverageSessionLength(mockSessions),
+      score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+      next: getNextBestAction(mockTasks, now),
+    };
+  }, [now]);
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
   const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
