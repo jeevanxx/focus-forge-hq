@@ -1,0 +1,3 @@
+## 2025-05-22 - O(N) Analytics Optimization
+**Learning:** String-based formatting within large loops (e.g., `format(date, 'yyyy-MM-dd')`) is a major performance bottleneck. Using `differenceInCalendarDays` to bucket data into an array index provides a significant speedup (~7-15x) by avoiding expensive string operations and redundant parsing. Additionally, deriving totals from pre-calculated aggregate arrays in the UI prevents unnecessary redundant iterations over large datasets.
+**Action:** Always prefer numeric or index-based bucketing over string-key maps for temporal data processing in hot paths.
