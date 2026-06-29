@@ -22,21 +22,44 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize now for useMemo dependencies
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  // Memoizing all analytics calculations prevents redundant execution on every re-render.
+  // We bundle them into a single useMemo as they all share the same static data dependencies.
+  const {
+    weekly,
+    totalMin,
+    completion,
+    delayed,
+    window,
+    avgSession,
+    score,
+    next,
+    maxBar,
+    goalPct,
+  } = useMemo(() => {
+    const weeklyData = getWeeklyFocus(mockSessions, now);
+    // Derive totalMin from weeklyData instead of calling getWeeklyFocusTotal (saves a redundant pass over the sessions)
+    const total = weeklyData.reduce((acc, d) => acc + d.minutes, 0);
 
-  const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
-  const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
+    return {
+      weekly: weeklyData,
+      totalMin: total,
+      completion: getCompletionRate(mockTasks),
+      delayed: getDelayedHighPriority(mockTasks, now),
+      window: getBestFocusWindow(mockSessions),
+      avgSession: getAverageSessionLength(mockSessions),
+      score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+      next: getNextBestAction(mockTasks, now),
+      maxBar: Math.max(...weeklyData.map((d) => d.minutes), 1),
+      goalPct: Math.min(100, Math.round((total / (DAILY_FOCUS_GOAL_MIN * 7)) * 100)),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mockSessions, mockTasks, mockHabits, now]);
 
   const tierColor =
     score.tier === "Forging"
