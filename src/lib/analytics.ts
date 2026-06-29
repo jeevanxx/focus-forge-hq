@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,14 +83,31 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  // Ensure we compare from the very beginning of the week's first day
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = addDays(weekStart, 7);
+
+  const results: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // O(N) single-pass iteration avoids redundant date parsing/formatting in nested loops
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dayIndex = differenceInCalendarDays(sessionDate, weekStart);
+      if (dayIndex >= 0 && dayIndex < 7) {
+        results[dayIndex].minutes += session.durationMin;
+      }
+    }
+  }
+
+  return results;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
