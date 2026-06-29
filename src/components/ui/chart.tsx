@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(`chart-${id || uniqueId.replace(/:/g, "")}`);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +65,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const sanitizedId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${sanitizedId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color
+      ? `  --color-${sanitizeKey(key)}: ${sanitizeValue(color)};`
+      : null;
   })
   .join("\n")}
 }
@@ -273,6 +277,23 @@ const ChartLegendContent = React.forwardRef<
   );
 });
 ChartLegendContent.displayName = "ChartLegend";
+
+// Helper to sanitize IDs to prevent attribute breakout or CSS injection.
+function sanitizeId(id: string) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+// Helper to sanitize keys used in CSS variables.
+function sanitizeKey(key: string) {
+  // Allow alphanumeric, dots, underscores, and dashes. Block characters used for rule breakout.
+  return key.replace(/[;{}|[\]"<>\\:]/g, "");
+}
+
+// Helper to sanitize CSS variable values (e.g. colors).
+function sanitizeValue(value: string) {
+  // Allow common color characters but block characters used for rule breakout.
+  return value.replace(/[;{}|[\]"<>\\:]/g, "");
+}
 
 // Helper to extract item config from a payload.
 function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {
