@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { mockTasks, Task } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { Plus, Search } from "lucide-react";
@@ -12,14 +12,17 @@ const Tasks = () => {
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
 
-  const today = new Date().toISOString().slice(0, 10);
-  const filtered = tasks.filter((t) => {
-    if (query && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
-    if (filter === "Today") return t.dueDate === today;
-    if (filter === "High") return t.priority === "high";
-    if (filter === "Done") return t.done;
-    return true;
-  });
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const filtered = useMemo(() => {
+    return tasks.filter((t) => {
+      if (query && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
+      if (filter === "Today") return t.dueDate === today;
+      if (filter === "High") return t.priority === "high";
+      if (filter === "Done") return t.done;
+      return true;
+    });
+  }, [tasks, query, filter, today]);
 
   const toggle = (id: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
 
