@@ -22,21 +22,42 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize 'now' so that useMemo dependencies are consistent across re-renders
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  const {
+    weekly,
+    totalMin,
+    completion,
+    delayed,
+    window,
+    avgSession,
+    score,
+    next,
+    maxBar,
+    goalPct,
+  } = useMemo(() => {
+    const weeklyFocus = getWeeklyFocus(mockSessions, now);
+    // Derive totalMin from weeklyFocus to avoid redundant session iterations
+    const total = weeklyFocus.reduce((acc, d) => acc + d.minutes, 0);
 
-  const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
-  const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
+    return {
+      weekly: weeklyFocus,
+      totalMin: total,
+      completion: getCompletionRate(mockTasks),
+      delayed: getDelayedHighPriority(mockTasks, now),
+      window: getBestFocusWindow(mockSessions),
+      avgSession: getAverageSessionLength(mockSessions),
+      score: getProductivityScore(mockTasks, mockSessions, mockHabits, now),
+      next: getNextBestAction(mockTasks, now),
+      maxBar: Math.max(...weeklyFocus.map((d) => d.minutes), 1),
+      goalPct: Math.min(100, Math.round((total / (DAILY_FOCUS_GOAL_MIN * 7)) * 100)),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, mockSessions, mockTasks, mockHabits]);
 
   const tierColor =
     score.tier === "Forging"
