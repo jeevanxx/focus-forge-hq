@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${sanitizeId(id || uniqueId.replace(/:/g, ""))}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,18 +65,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color ? `  --color-${sanitizeKey(key)}: ${sanitizeCssValue(color)};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
@@ -86,6 +89,33 @@ ${colorConfig
     />
   );
 };
+
+/**
+ * Sanitizes an ID to be safe for use in HTML attributes and CSS selectors.
+ * Allows only alphanumeric characters, underscores, and hyphens.
+ */
+function sanitizeId(id: string) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+/**
+ * Sanitizes a key to be safe for use as a CSS variable name.
+ * Allows alphanumeric characters, underscores, hyphens, and dots.
+ * Strictly blocks characters that could break out of a CSS rule.
+ */
+function sanitizeKey(key: string) {
+  return key.replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
+/**
+ * Sanitizes a CSS value (like a color) to prevent CSS injection.
+ * Blocks characters like ;, {, }, and quotes.
+ */
+function sanitizeCssValue(value: string) {
+  // Allow common color characters: hex, rgb/rgba, hsl/hsla, and basic names.
+  // Block any characters that can be used to break out of a CSS declaration or rule.
+  return value.replace(/[;{}"'<>\\]/g, "");
+}
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
