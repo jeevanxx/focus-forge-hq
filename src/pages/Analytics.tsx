@@ -22,18 +22,45 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 const Analytics = () => {
-  const now = new Date();
+  // Stabilize now reference to prevent constant re-calculation of analytics
+  const now = useMemo(() => new Date(), []);
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  // Memoize all analytics calculations to avoid O(N) work on every re-render
+  const analytics = useMemo(() => {
+    const weekly = getWeeklyFocus(mockSessions, now);
+    const totalMin = getWeeklyFocusTotal(mockSessions, now);
+    const completion = getCompletionRate(mockTasks);
+    const delayed = getDelayedHighPriority(mockTasks, now);
+    const window = getBestFocusWindow(mockSessions);
+    const avgSession = getAverageSessionLength(mockSessions);
+    const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
+    const next = getNextBestAction(mockTasks, now);
+
+    return {
+      weekly,
+      totalMin,
+      completion,
+      delayed,
+      window,
+      avgSession,
+      score,
+      next,
+    };
+  }, [now]);
+
+  const {
+    weekly,
+    totalMin,
+    completion,
+    delayed,
+    window,
+    avgSession,
+    score,
+    next,
+  } = analytics;
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
   const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
