@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${sanitizeId(id || uniqueId.replace(/:/g, ""))}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +65,19 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color ? `  --color-${sanitizeKey(key)}: ${sanitizeCssValue(color)};` : null;
   })
   .join("\n")}
 }
@@ -86,6 +88,18 @@ ${colorConfig
     />
   );
 };
+
+function sanitizeId(id: string) {
+  return id.replace(/[^a-zA-Z0-9-_]/g, "");
+}
+
+function sanitizeKey(key: string) {
+  return key.replace(/[^a-zA-Z0-9-_]/g, "");
+}
+
+function sanitizeCssValue(value: string) {
+  return value.replace(/[;{}[\]"'<>\\]/g, "");
+}
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
