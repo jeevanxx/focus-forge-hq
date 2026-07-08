@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -78,23 +78,54 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Optimized getWeeklyFocus: O(N) instead of O(7N).
+ * Uses single-pass iteration with index-based bucketing via differenceInCalendarDays.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  weekStart.setHours(0, 0, 0, 0);
+
+  // Initialize result array with all days of the week
+  const results: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, date: format(date, "yyyy-MM-dd"), minutes: 0 };
   });
+
+  // O(N) single-pass aggregation
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    const diff = differenceInCalendarDays(sessionDate, weekStart);
+
+    // Only include if it falls within the 7-day window starting from weekStart
+    if (diff >= 0 && diff < 7) {
+      results[diff].minutes += session.durationMin;
+    }
+  }
+
+  return results;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * Optimized getWeeklyFocusTotal: O(N) single-pass.
+ * Avoids creating intermediate arrays from getWeeklyFocus.
+ */
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  weekStart.setHours(0, 0, 0, 0);
+
+  return sessions.reduce((sum, session) => {
+    const sessionDate = parseISO(session.date);
+    const diff = differenceInCalendarDays(sessionDate, weekStart);
+    if (diff >= 0 && diff < 7) {
+      return sum + session.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
