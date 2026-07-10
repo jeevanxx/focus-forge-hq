@@ -1,0 +1,3 @@
+## 2025-05-22 - [Performance Bottleneck in Analytics Calculations]
+**Learning:** Redundant date parsing and formatting inside loops ($O(N \times 7)$) is a primary performance bottleneck in analytics calculations. `differenceInCalendarDays` from `date-fns` is significantly more performant than string-based formatting for bucketing temporal data into array indexes during $O(N)$ loops.
+**Action:** Use single-pass $O(N)$ iteration with array-based bucketing for temporal data aggregation. Minimize expensive operations like `format()` or `parseISO()` inside high-frequency loops. Memoize analytics results in React components to prevent recalculation on every render.
