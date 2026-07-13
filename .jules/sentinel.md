@@ -1,0 +1,4 @@
+## 2025-05-22 - CSS Injection in Chart Component
+**Vulnerability:** The `ChartStyle` component used `dangerouslySetInnerHTML` to inject a dynamic `<style>` tag. Variables like `id`, `config` keys, and `color` values were used directly in the CSS template string without sanitization, allowing an attacker (or a developer using untrusted data) to break out of the intended CSS rules and inject arbitrary CSS.
+**Learning:** Even "internal" data like component IDs can be a vector for injection if they are passed as props and used in `dangerouslySetInnerHTML`. Property keys in configuration objects are also often overlooked as potential injection points.
+**Prevention:** Always sanitize any dynamic data used within `dangerouslySetInnerHTML`. Use restrictive allow-lists for CSS identifiers (e.g., `[^\w-]`) and black-lists for dangerous characters in property values (e.g., `; { } [ ] " < > \ @`). Always quote attribute selectors in CSS to prevent attribute breakout.
