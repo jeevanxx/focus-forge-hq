@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays, isBefore } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,18 +83,48 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+  const normalizedWeekStart = new Date(weekStart);
+  normalizedWeekStart.setHours(0, 0, 0, 0);
+  const weekEnd = addDays(normalizedWeekStart, 7);
+
+  // Initialize result array O(7)
+  const results: DailyFocus[] = WEEK_LABELS.map((day, i) => {
+    const date = addDays(normalizedWeekStart, i);
+    return { day, date: format(date, "yyyy-MM-dd"), minutes: 0 };
   });
+
+  // Single pass O(N) to bucket sessions into days
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    // Only process sessions within the current week's range
+    if (!isBefore(sessionDate, normalizedWeekStart) && isBefore(sessionDate, weekEnd)) {
+      const dayIndex = differenceInCalendarDays(sessionDate, normalizedWeekStart);
+      if (dayIndex >= 0 && dayIndex < 7) {
+        results[dayIndex].minutes += session.durationMin;
+      }
+    }
+  }
+
+  return results;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * Optimized total calculation in O(N) to avoid intermediate array creation
+ */
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const normalizedWeekStart = new Date(weekStart);
+  normalizedWeekStart.setHours(0, 0, 0, 0);
+  const weekEnd = addDays(normalizedWeekStart, 7);
+
+  return sessions.reduce((sum, s) => {
+    const sessionDate = parseISO(s.date);
+    if (!isBefore(sessionDate, normalizedWeekStart) && isBefore(sessionDate, weekEnd)) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
