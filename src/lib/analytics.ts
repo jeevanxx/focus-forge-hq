@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -78,23 +78,73 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Performance Optimization:
+ * Reduces getWeeklyFocus from O(7N) (nested loop over sessions) to O(N) (single-pass).
+ * Pre-fills the week array and buckets session times using differenceInCalendarDays.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
+  // Ensure the base start of the week starts exactly at midnight local time
+  const normalizedWeekStart = new Date(weekStart);
+  normalizedWeekStart.setHours(0, 0, 0, 0);
+
+  // Pre-fill result array with zero-initialized values for the 7 days
+  const dailyFocusArray: DailyFocus[] = WEEK_LABELS.map((day, i) => {
+    const date = addDays(normalizedWeekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, date: dateKey, minutes: 0 };
   });
+
+  // Single-pass O(N) bucketing using date-fns differenceInCalendarDays to safely handle DST
+  for (let i = 0; i < sessions.length; i++) {
+    const session = sessions[i];
+    const sessionDate = parseISO(session.date);
+
+    // Safely compute the exact calendar day difference using date-fns to handle DST transitions
+    const diffDays = differenceInCalendarDays(sessionDate, normalizedWeekStart);
+
+    // If the session falls within the current 7-day week
+    if (diffDays >= 0 && diffDays < 7) {
+      dailyFocusArray[diffDays].minutes += session.durationMin;
+    }
+  }
+
+  return dailyFocusArray;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+/**
+ * Performance Optimization:
+ * Directly accumulates weekly focus minutes in O(N) using date boundaries,
+ * avoiding the creation of intermediate arrays and strings of getWeeklyFocus.
+ */
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Reset hours to start/end boundaries for correct chronological comparisons
+  const startTime = new Date(weekStart);
+  startTime.setHours(0, 0, 0, 0);
+  const endTime = new Date(weekEnd);
+  endTime.setHours(0, 0, 0, 0);
+
+  const startMs = startTime.getTime();
+  const endMs = endTime.getTime();
+
+  let totalMinutes = 0;
+  for (let i = 0; i < sessions.length; i++) {
+    const session = sessions[i];
+    const sessionMs = parseISO(session.date).getTime();
+    if (sessionMs >= startMs && sessionMs < endMs) {
+      totalMinutes += session.durationMin;
+    }
+  }
+
+  return totalMinutes;
+};
 
 // ---------- 2. Completion rate ----------
 
