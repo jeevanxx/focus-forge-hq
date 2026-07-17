@@ -4,7 +4,7 @@ import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
+import { useState, ElementType } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -19,7 +19,7 @@ const MiniStat = ({
   label: string;
   value: string;
   sub: string;
-  icon: any;
+  icon: ElementType;
 }) => (
   <div className="group relative p-4 rounded-2xl border border-border bg-card/40 backdrop-blur-xl shadow-soft hover:border-border-strong hover:bg-card/70 lift overflow-hidden">
     <div className="flex items-center justify-between mb-2">
