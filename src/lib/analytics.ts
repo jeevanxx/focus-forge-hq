@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,14 +83,31 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  weekStart.setHours(0, 0, 0, 0);
+
+  // Pre-fill result array with 7 zero-initialized elements for each day of the week
+  // to ensure consistent data structures and avoid missing-key checks during session aggregation.
+  const results: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Single-pass iteration over sessions (O(N) performance optimization)
+  for (const s of sessions) {
+    const sessionDate = parseISO(s.date);
+    // Calculate index based on the difference in calendar days.
+    // Using differenceInCalendarDays prevents timezone/daylight saving transition bugs.
+    const diff = differenceInCalendarDays(sessionDate, weekStart);
+    if (diff >= 0 && diff < 7) {
+      results[diff].minutes += s.durationMin;
+    }
+  }
+
+  return results;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
