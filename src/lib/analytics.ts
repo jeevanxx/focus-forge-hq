@@ -2,7 +2,7 @@
 // Pure functions over Task/FocusSession arrays — swap mock arrays for
 // Supabase query results in Phase 2 without touching call sites.
 
-import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
+import { addDays, startOfWeek, isAfter, parseISO, format, differenceInCalendarDays } from "date-fns";
 import type { Task, FocusSession, Habit } from "./mock-data";
 
 // ---------- Config ----------
@@ -83,14 +83,32 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-fill the results array with zero-initialized entries for all 7 days of the week.
+  // This ensures consistent data structures and avoids missing-key checks during session aggregation.
+  const dailyFocusList: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Single-pass iteration (O(N)) to aggregate focus minutes.
+  // We use differenceInCalendarDays to correctly index into the pre-filled list,
+  // avoiding timezone/DST issues and minimizing expensive formatting/filtering.
+  for (let i = 0; i < sessions.length; i++) {
+    const session = sessions[i];
+    const sessionDate = parseISO(session.date);
+    const dayOffset = differenceInCalendarDays(sessionDate, weekStart);
+
+    if (dayOffset >= 0 && dayOffset < 7) {
+      dailyFocusList[dayOffset].minutes += session.durationMin;
+    }
+  }
+
+  return dailyFocusList;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
