@@ -1,0 +1,4 @@
+## 2026-05-11 - Dynamic CSS Variable Injection in ChartStyle
+**Vulnerability:** Dynamic and unsanitized key names, CSS IDs, and color definitions rendered via `dangerouslySetInnerHTML` in a `<style>` element. This can allow attackers to perform arbitrary CSS Injection or break out of `<style>` tags to execute XSS if dynamic configuration values are untrusted.
+**Learning:** React elements like `<style>` containing raw string templates lack built-in escaping. This creates injection vectors where dynamic values act as styling rules or structural syntax.
+**Prevention:** Apply restrictive alphanumeric whitelisting to selectors and CSS custom property identifiers (keys), and strip critical breakout characters like `; { } [ ] " ' < > \` from color values. This blocks breakout attempts while leaving color syntax functions like `hsl()` or `var()` completely valid and functional.
