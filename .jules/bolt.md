@@ -1,0 +1,3 @@
+## 2026-05-11 - TimeZone-Aware Weekly Focus Algorithmic Optimization
+**Learning:** A nested O(7N) calculation mapping over days of the week and scanning/parsing all sessions iteratively causes significant CPU bottlenecks. Slicing raw date strings like `s.date.slice(0, 10)` can break correctness across non-UTC local timezones, but parsing dates correctly with `format(parseISO(s.date), "yyyy-MM-dd")` in a single-pass O(N) map-based lookup guarantees both local timezone safety and maximum performance.
+**Action:** Always prefer pre-filling result structures and utilizing a single-pass iteration with $O(1)$ `Map` lookups based on standardized, timezone-consistent formatted keys.
