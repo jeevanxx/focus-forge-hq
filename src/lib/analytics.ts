@@ -83,14 +83,33 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-fill the results array with zero-initialized entries for all 7 days of the week.
+  // This ensures consistent data structures and avoids missing-key checks during session aggregation.
+  const dailyFocusList: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, date: dateKey, minutes: 0 };
   });
+
+  // Map to associate 'yyyy-MM-dd' string keys with the array index for O(1) lookups.
+  const dateToIndexMap = new Map<string, number>();
+  for (let i = 0; i < dailyFocusList.length; i++) {
+    dateToIndexMap.set(dailyFocusList[i].date, i);
+  }
+
+  // Single-pass O(N) iteration over sessions to aggregate minutes.
+  // Using format(parseISO(s.date), 'yyyy-MM-dd') preserves local timezone alignment.
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const targetIdx = dateToIndexMap.get(dateKey);
+    if (targetIdx !== undefined) {
+      dailyFocusList[targetIdx].minutes += s.durationMin;
+    }
+  }
+
+  return dailyFocusList;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
