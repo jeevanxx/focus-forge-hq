@@ -3,6 +3,20 @@ import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
 
+// Helper functions to sanitize dynamic values inserted into dangerouslySetInnerHTML
+const sanitizeId = (id: string): string => {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+const sanitizeKey = (key: string): string => {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+const sanitizeColor = (color: string): string => {
+  // Prevent arbitrary CSS/HTML breakout characters while keeping hsl/rgb/etc formats
+  return color.replace(/[;{}[\]"'\\]|<|>|`/g, "");
+};
+
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -37,7 +51,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(`chart-${id || uniqueId.replace(/:/g, "")}`);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +79,19 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color ? `  --color-${sanitizeKey(key)}: ${sanitizeColor(color)};` : null;
   })
   .join("\n")}
 }
