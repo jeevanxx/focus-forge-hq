@@ -4,7 +4,7 @@ import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -19,7 +19,7 @@ const MiniStat = ({
   label: string;
   value: string;
   sub: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }) => (
   <div className="group relative p-4 rounded-2xl border border-border bg-card/40 backdrop-blur-xl shadow-soft hover:border-border-strong hover:bg-card/70 lift overflow-hidden">
     <div className="flex items-center justify-between mb-2">
@@ -33,22 +33,29 @@ const MiniStat = ({
 
 const Dashboard = () => {
   const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
   const [tasks, setTasks] = useState(mockTasks);
-  const todayTasks = tasks.filter((t) => t.dueDate === format(today, "yyyy-MM-dd"));
-  const done = todayTasks.filter((t) => t.done).length;
-  const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
+
+  // Group all daily/task-related calculations into a single useMemo to avoid
+  // expensive array filters and sorts on every component re-render.
+  const { todayTasks, done, completion, activeTask, remainingTasks } = useMemo(() => {
+    const todayTasks = tasks.filter((t) => t.dueDate === todayStr);
+    const done = todayTasks.filter((t) => t.done).length;
+    const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
+
+    const priorityOrder = { high: 0, med: 1, low: 2 } as const;
+    const activeTask = [...todayTasks]
+      .filter((t) => !t.done)
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0] || null;
+
+    const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+
+    return { todayTasks, done, completion, activeTask, remainingTasks };
+  }, [tasks, todayStr]);
+
   const todayMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
   const focusGoal = 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
-
-  // Active task = first incomplete, sorted by priority high → med → low
-  const priorityOrder = { high: 0, med: 1, low: 2 };
-  const activeTask = [...todayTasks]
-    .filter((t) => !t.done)
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
-
-  // Remaining tasks (excluding active)
-  const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
 
   const toggle = (id: string) =>
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
