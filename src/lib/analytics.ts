@@ -83,14 +83,44 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-fill a map with 0-initialized daily focus data for the current week's 7 days.
+  // This avoids missing-key checks and sets up O(1) lookups.
+  const dailyFocusMap = new Map<string, DailyFocus>();
+  const weekStartTs = weekStart.getTime();
+
+  // End of the week boundary: start of the next week (8th day).
+  // Calculate using addDays to correctly handle Daylight Saving Time (DST) changes.
+  const weekEndTs = addDays(weekStart, 7).getTime();
+
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    dailyFocusMap.set(dateKey, { day: WEEK_LABELS[i], date: dateKey, minutes: 0 });
+  }
+
+  // Iterate over all focus sessions in a single-pass O(N).
+  // First, apply a highly efficient numeric timestamp range filter to ignore sessions that
+  // are guaranteed to fall outside of the target week.
+  // Then, update the pre-filled DailyFocus object in-place inside the Map.
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const sessionTime = new Date(s.date).getTime();
+
+    // Skip sessions that fall outside of the target week boundaries
+    if (sessionTime < weekStartTs || sessionTime >= weekEndTs) {
+      continue;
+    }
+
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const dailyData = dailyFocusMap.get(dateKey);
+    if (dailyData) {
+      dailyData.minutes += s.durationMin;
+    }
+  }
+
+  // Return the pre-ordered weekly focus array directly from the pre-filled map
+  return Array.from(dailyFocusMap.values());
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
