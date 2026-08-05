@@ -209,9 +209,10 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <MiniStat label="Streak" value="12" sub="days" icon={Flame} />
-              <MiniStat label="Sessions" value={`${mockSessions.length}`} sub="this week" icon={ArrowUpRight} />
+              <MiniStat label="Streak" value={`${bestStreak}`} sub="days" icon={Flame} />
+              <MiniStat label="Sessions" value={`${sessions.length}`} sub="recent" icon={ArrowUpRight} />
             </div>
+
           </motion.div>
         </div>
       </section>
@@ -280,15 +281,19 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-3 lg:flex-col lg:items-stretch shrink-0">
                 <button
-                  onClick={() => toggle(activeTask.id)}
+                  onClick={() => start({ minutes: activeTask.estimateMin ?? 25, taskTitle: activeTask.title, taskId: activeTask.id })}
                   className="press inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-ember text-primary-foreground font-bold text-sm shadow-ember-lg hover:shadow-ember hover:-translate-y-0.5 transition-all whitespace-nowrap"
                 >
                   <Play className="h-4 w-4 fill-current" strokeWidth={2.5} />
                   Start focus
                 </button>
-                <button className="press inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-card/60 backdrop-blur border border-border-strong text-foreground/90 font-semibold text-sm hover:bg-card hover:border-primary/40 transition-all">
-                  Skip
+                <button
+                  onClick={() => toggle(activeTask.id)}
+                  className="press inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-card/60 backdrop-blur border border-border-strong text-foreground/90 font-semibold text-sm hover:bg-card hover:border-primary/40 transition-all"
+                >
+                  Mark done
                 </button>
+
               </div>
             </div>
           </div>
@@ -335,10 +340,16 @@ const Dashboard = () => {
               </a>
             </div>
             <div className="space-y-2.5">
-              {mockHabits.slice(0, 3).map((h) => (
-                <HabitRow key={h.id} habit={h} />
+              {habits.slice(0, 3).map((h) => (
+                <HabitRow key={h.id} habit={h} onToggle={(id) => toggleToday.mutate(id)} />
               ))}
+              {!habits.length && (
+                <div className="p-8 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
+                  No habits yet. Start one on the Habits page.
+                </div>
+              )}
             </div>
+
           </section>
         </div>
 
