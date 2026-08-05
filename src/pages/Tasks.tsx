@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { mockTasks, Task } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
+import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTasks } from "@/hooks/useTasks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const filters = ["All", "Today", "High", "Done"] as const;
 type Filter = typeof filters[number];
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const { tasks, isLoading, toggleTask } = useTasks();
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
 
@@ -21,8 +23,6 @@ const Tasks = () => {
     return true;
   });
 
-  const toggle = (id: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
       <div className="flex items-end justify-between mb-8">
@@ -33,9 +33,13 @@ const Tasks = () => {
           </div>
           <h1 className="font-display text-4xl lg:text-5xl font-bold tracking-tight">Tasks</h1>
         </div>
-        <button className="press inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:shadow-ember-lg hover:-translate-y-0.5 transition-all">
-          <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New task</span>
-        </button>
+        <NewTaskDialog
+          trigger={
+            <button className="press inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:shadow-ember-lg hover:-translate-y-0.5 transition-all">
+              <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New task</span>
+            </button>
+          }
+        />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
@@ -65,10 +69,11 @@ const Tasks = () => {
       </div>
 
       <div className="space-y-2.5">
-        {filtered.map((t) => <TaskCard key={t.id} task={t} onToggle={toggle} />)}
-        {!filtered.length && (
+        {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        {!isLoading && filtered.map((t) => <TaskCard key={t.id} task={t} onToggle={(id) => toggleTask.mutate(id)} />)}
+        {!isLoading && !filtered.length && (
           <div className="p-12 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
-            No tasks match. Try a different filter.
+            {tasks.length ? "No tasks match. Try a different filter." : "No tasks yet. Add the one you've been avoiding."}
           </div>
         )}
       </div>
