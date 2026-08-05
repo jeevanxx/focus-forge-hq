@@ -1,12 +1,24 @@
 import { useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AssistantPanel } from "./AssistantPanel";
-import { mockAssistantSuggestions } from "@/lib/mock-data";
+import { useTasks } from "@/hooks/useTasks";
+import { getNextBestAction, getDelayedHighPriority } from "@/lib/analytics";
 
 export const AssistantFab = () => {
   const [open, setOpen] = useState(false);
   const [bubblesVisible, setBubblesVisible] = useState(true);
+  const { tasks } = useTasks();
+
+  const now = new Date();
+  const delayed = getDelayedHighPriority(tasks, now);
+  const next = getNextBestAction(tasks, now);
+  const suggestions = [
+    next.message,
+    delayed.count > 0
+      ? `${delayed.count} high-priority task${delayed.count > 1 ? "s" : ""} overdue. No more excuses.`
+      : "Ask me what to do next — I'll pick for you.",
+  ];
 
   return (
     <>
@@ -14,7 +26,8 @@ export const AssistantFab = () => {
       <AnimatePresence>
         {!open && bubblesVisible && (
           <div className="fixed bottom-28 lg:bottom-24 right-5 z-40 flex flex-col items-end gap-2 max-w-[260px] pointer-events-none">
-            {mockAssistantSuggestions.slice(0, 2).map((s, i) => (
+            {suggestions.slice(0, 2).map((s, i) => (
+
               <motion.button
                 key={s}
                 initial={{ opacity: 0, x: 20, y: 10 }}
