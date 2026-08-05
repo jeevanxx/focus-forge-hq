@@ -1,12 +1,17 @@
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
-import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
+import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTasks } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions } from "@/hooks/useFocusSessions";
+import { useFocus } from "@/context/FocusContext";
+import { getWeeklyFocus } from "@/lib/analytics";
+
 
 /* ---------- Mini stat tile (secondary) ---------- */
 
@@ -33,13 +38,19 @@ const MiniStat = ({
 
 const Dashboard = () => {
   const today = new Date();
-  const [tasks, setTasks] = useState(mockTasks);
-  const todayTasks = tasks.filter((t) => t.dueDate === format(today, "yyyy-MM-dd"));
+  const todayKey = format(today, "yyyy-MM-dd");
+  const { tasks, toggleTask } = useTasks();
+  const { habits, toggleToday } = useHabits();
+  const { sessions } = useFocusSessions();
+  const { start } = useFocus();
+
+  const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
   const done = todayTasks.filter((t) => t.done).length;
   const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
+  const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
   const focusGoal = 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
+  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
   // Active task = first incomplete, sorted by priority high → med → low
   const priorityOrder = { high: 0, med: 1, low: 2 };
@@ -50,8 +61,9 @@ const Dashboard = () => {
   // Remaining tasks (excluding active)
   const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
 
-  const toggle = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = (id: string) => toggleTask.mutate(id);
+
+
 
   return (
     <div className="px-5 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto animate-fade-in">
@@ -197,9 +209,10 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <MiniStat label="Streak" value="12" sub="days" icon={Flame} />
-              <MiniStat label="Sessions" value={`${mockSessions.length}`} sub="this week" icon={ArrowUpRight} />
+              <MiniStat label="Streak" value={`${bestStreak}`} sub="days" icon={Flame} />
+              <MiniStat label="Sessions" value={`${sessions.length}`} sub="recent" icon={ArrowUpRight} />
             </div>
+
           </motion.div>
         </div>
       </section>
@@ -268,15 +281,19 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-3 lg:flex-col lg:items-stretch shrink-0">
                 <button
-                  onClick={() => toggle(activeTask.id)}
+                  onClick={() => start({ minutes: activeTask.estimateMin ?? 25, taskTitle: activeTask.title, taskId: activeTask.id })}
                   className="press inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-ember text-primary-foreground font-bold text-sm shadow-ember-lg hover:shadow-ember hover:-translate-y-0.5 transition-all whitespace-nowrap"
                 >
                   <Play className="h-4 w-4 fill-current" strokeWidth={2.5} />
                   Start focus
                 </button>
-                <button className="press inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-card/60 backdrop-blur border border-border-strong text-foreground/90 font-semibold text-sm hover:bg-card hover:border-primary/40 transition-all">
-                  Skip
+                <button
+                  onClick={() => toggle(activeTask.id)}
+                  className="press inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-card/60 backdrop-blur border border-border-strong text-foreground/90 font-semibold text-sm hover:bg-card hover:border-primary/40 transition-all"
+                >
+                  Mark done
                 </button>
+
               </div>
             </div>
           </div>
@@ -303,7 +320,17 @@ const Dashboard = () => {
               {remainingTasks.map((t) => (
                 <TaskCard key={t.id} task={t} onToggle={toggle} />
               ))}
+              {!remainingTasks.length && (
+                <NewTaskDialog
+                  trigger={
+                    <button className="w-full p-8 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm hover:border-primary/40 hover:text-foreground transition-colors">
+                      Nothing queued for today. Add your first task.
+                    </button>
+                  }
+                />
+              )}
             </div>
+
           </section>
 
           {/* Habits */}
@@ -323,10 +350,16 @@ const Dashboard = () => {
               </a>
             </div>
             <div className="space-y-2.5">
-              {mockHabits.slice(0, 3).map((h) => (
-                <HabitRow key={h.id} habit={h} />
+              {habits.slice(0, 3).map((h) => (
+                <HabitRow key={h.id} habit={h} onToggle={(id) => toggleToday.mutate(id)} />
               ))}
+              {!habits.length && (
+                <div className="p-8 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
+                  No habits yet. Start one on the Habits page.
+                </div>
+              )}
             </div>
+
           </section>
         </div>
 
@@ -358,9 +391,14 @@ const Dashboard = () => {
       </div>
 
       {/* Floating new-task button (desktop) */}
-      <button className="press hidden lg:inline-flex fixed bottom-8 right-24 z-30 items-center gap-2 text-sm font-bold px-5 py-3.5 rounded-2xl bg-card/70 backdrop-blur-xl border border-border-strong text-foreground shadow-elev-lg hover:border-primary/50 hover:-translate-y-0.5 transition-all">
-        <Plus className="h-4 w-4 text-primary" strokeWidth={2.5} /> New task
-      </button>
+      <NewTaskDialog
+        trigger={
+          <button className="press hidden lg:inline-flex fixed bottom-8 right-24 z-30 items-center gap-2 text-sm font-bold px-5 py-3.5 rounded-2xl bg-card/70 backdrop-blur-xl border border-border-strong text-foreground shadow-elev-lg hover:border-primary/50 hover:-translate-y-0.5 transition-all">
+            <Plus className="h-4 w-4 text-primary" strokeWidth={2.5} /> New task
+          </button>
+        }
+      />
+
     </div>
   );
 };

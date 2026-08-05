@@ -1,11 +1,16 @@
-import { mockHabits } from "@/lib/mock-data";
 import { HabitRow } from "@/components/HabitRow";
+import { NewHabitDialog } from "@/components/NewHabitDialog";
 import { Plus, Flame, TrendingUp } from "lucide-react";
+import { useHabits } from "@/hooks/useHabits";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Habits = () => {
-  const totalStreak = mockHabits.reduce((s, h) => s + h.streak, 0);
-  const completedThisWeek = mockHabits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
-  const targetThisWeek = mockHabits.reduce((s, h) => s + h.target, 0);
+  const { habits, isLoading, toggleToday } = useHabits();
+
+  const totalStreak = habits.reduce((s, h) => s + h.streak, 0);
+  const completedThisWeek = habits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
+  const targetThisWeek = habits.reduce((s, h) => s + h.target, 0);
+  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
@@ -17,9 +22,13 @@ const Habits = () => {
           </div>
           <h1 className="font-display text-4xl lg:text-5xl font-bold tracking-tight">Habits</h1>
         </div>
-        <button className="press inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:shadow-ember-lg hover:-translate-y-0.5 transition-all">
-          <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New habit</span>
-        </button>
+        <NewHabitDialog
+          trigger={
+            <button className="press inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl bg-gradient-ember text-primary-foreground shadow-ember hover:shadow-ember-lg hover:-translate-y-0.5 transition-all">
+              <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New habit</span>
+            </button>
+          }
+        />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 mb-8">
@@ -42,12 +51,20 @@ const Habits = () => {
             <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Best streak</span>
             <Flame className="h-3.5 w-3.5 text-accent" />
           </div>
-          <div className="font-display text-2xl font-semibold">21 days</div>
+          <div className="font-display text-2xl font-semibold">{bestStreak} days</div>
         </div>
       </div>
 
       <div className="space-y-2.5">
-        {mockHabits.map((h) => <HabitRow key={h.id} habit={h} />)}
+        {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        {!isLoading && habits.map((h) => (
+          <HabitRow key={h.id} habit={h} onToggle={(id) => toggleToday.mutate(id)} />
+        ))}
+        {!isLoading && !habits.length && (
+          <div className="p-12 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
+            No habits yet. Pick one you can repeat daily and start the streak today.
+          </div>
+        )}
       </div>
     </div>
   );

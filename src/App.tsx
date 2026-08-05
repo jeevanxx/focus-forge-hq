@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/AppShell";
 import { AuthProvider } from "@/context/AuthContext";
+import { FocusProvider } from "@/context/FocusContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
@@ -18,9 +19,12 @@ const queryClient = new QueryClient();
 
 const protectedShell = (node: React.ReactNode) => (
   <ProtectedRoute>
-    <AppShell>{node}</AppShell>
+    <FocusProvider>
+      <AppShell>{node}</AppShell>
+    </FocusProvider>
   </ProtectedRoute>
 );
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

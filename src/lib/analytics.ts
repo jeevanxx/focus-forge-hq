@@ -1,9 +1,9 @@
 // Analytics engine for Focus Forge.
-// Pure functions over Task/FocusSession arrays — swap mock arrays for
-// Supabase query results in Phase 2 without touching call sites.
+// Pure functions over Task/FocusSession arrays sourced from the database.
 
 import { addDays, startOfWeek, isAfter, parseISO, format } from "date-fns";
-import type { Task, FocusSession, Habit } from "./mock-data";
+import type { Task, FocusSession, Habit } from "./types";
+
 
 // ---------- Config ----------
 
@@ -179,11 +179,13 @@ export const getAverageSessionLength = (sessions: FocusSession[]): number => {
 const getStreakConsistency = (habits: Habit[]): number => {
   if (habits.length === 0) return 0;
   // Consistency = avg of (last-7-days completion) across habits.
-  const ratios = habits.map(
-    (h) => h.history.filter(Boolean).length / h.history.length
-  );
+  const ratios = habits
+    .filter((h) => h.history.length > 0)
+    .map((h) => h.history.filter(Boolean).length / h.history.length);
+  if (ratios.length === 0) return 0;
   return ratios.reduce((s, r) => s + r, 0) / ratios.length; // 0-1
 };
+
 
 export const getProductivityScore = (
   tasks: Task[],

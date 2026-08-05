@@ -1,4 +1,4 @@
-import { Task } from "@/lib/mock-data";
+import { Task } from "@/lib/types";
 import { Check, Clock, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";

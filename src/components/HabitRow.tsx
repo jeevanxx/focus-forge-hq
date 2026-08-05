@@ -1,6 +1,6 @@
-import { Habit } from "@/lib/mock-data";
+import { Habit } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Flame } from "lucide-react";
+import { Check, Flame } from "lucide-react";
 
 const colorMap = {
   ember: "from-primary to-primary-glow shadow-ember",
@@ -9,9 +9,10 @@ const colorMap = {
   teal: "from-[hsl(170_70%_45%)] to-[hsl(190_70%_55%)]",
 };
 
-export const HabitRow = ({ habit }: { habit: Habit }) => {
+export const HabitRow = ({ habit, onToggle }: { habit: Habit; onToggle?: (id: string) => void }) => {
   const completed = habit.history.filter(Boolean).length;
-  const pct = Math.round((completed / habit.target) * 100);
+  const pct = Math.round((completed / Math.max(1, habit.target)) * 100);
+  const doneToday = habit.history[habit.history.length - 1];
 
   return (
     <div className="group relative flex items-center gap-4 p-4 lg:p-5 rounded-2xl border border-border bg-gradient-card shadow-soft hover:border-border-strong hover:shadow-elev lift overflow-hidden">
@@ -32,7 +33,6 @@ export const HabitRow = ({ habit }: { habit: Habit }) => {
             <span className="text-foreground/80 font-semibold">{completed}/{habit.target}</span> this week
           </span>
         </div>
-        {/* Progress bar */}
         <div className="mt-2 h-1 rounded-full bg-muted/60 overflow-hidden max-w-[200px]">
           <div
             className="h-full bg-gradient-ember rounded-full transition-all duration-500"
@@ -41,7 +41,7 @@ export const HabitRow = ({ habit }: { habit: Habit }) => {
         </div>
       </div>
 
-      <div className="flex gap-1">
+      <div className="hidden sm:flex gap-1">
         {habit.history.map((done, i) => (
           <div
             key={i}
@@ -55,6 +55,21 @@ export const HabitRow = ({ habit }: { habit: Habit }) => {
           />
         ))}
       </div>
+
+      {onToggle && (
+        <button
+          onClick={() => onToggle(habit.id)}
+          aria-label={doneToday ? `Undo ${habit.name} for today` : `Mark ${habit.name} done today`}
+          className={cn(
+            "press h-10 w-10 shrink-0 rounded-xl border-2 grid place-items-center transition-all",
+            doneToday
+              ? "bg-gradient-ember border-transparent shadow-ember"
+              : "border-border-strong hover:border-primary/70 hover:bg-primary/10"
+          )}
+        >
+          <Check className={cn("h-4 w-4", doneToday ? "text-primary-foreground" : "text-muted-foreground")} strokeWidth={3} />
+        </button>
+      )}
     </div>
   );
 };
