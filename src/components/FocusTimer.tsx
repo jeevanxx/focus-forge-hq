@@ -1,53 +1,24 @@
-import { useEffect, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, Coffee, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-type Mode = "focus" | "break";
-const DURATIONS: Record<Mode, number> = { focus: 25 * 60, break: 5 * 60 };
+import { useFocus } from "@/context/FocusContext";
 
 export const FocusTimer = () => {
-  const [mode, setMode] = useState<Mode>("focus");
-  const [secondsLeft, setSecondsLeft] = useState(DURATIONS.focus);
-  const [running, setRunning] = useState(false);
-  const intervalRef = useRef<number | null>(null);
+  const { mode, setMode, running, secondsLeft, totalSeconds, taskTitle, start, pause, resume, reset } = useFocus();
 
-  useEffect(() => {
-    if (running) {
-      intervalRef.current = window.setInterval(() => {
-        setSecondsLeft((s) => {
-          if (s <= 1) {
-            setRunning(false);
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
-    };
-  }, [running]);
-
-  const switchMode = (m: Mode) => {
-    setMode(m);
-    setSecondsLeft(DURATIONS[m]);
-    setRunning(false);
-  };
-
-  const reset = () => {
-    setSecondsLeft(DURATIONS[mode]);
-    setRunning(false);
-  };
-
-  const total = DURATIONS[mode];
-  const progress = 1 - secondsLeft / total;
+  const progress = totalSeconds > 0 ? 1 - secondsLeft / totalSeconds : 0;
   const radius = 92;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress);
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const ss = String(secondsLeft % 60).padStart(2, "0");
+
+  const onPrimary = () => {
+    if (running) return pause();
+    if (secondsLeft === totalSeconds && mode === "focus") return start({ minutes: totalSeconds / 60, taskTitle });
+    resume();
+  };
 
   return (
     <div className="relative p-6 sm:p-7 rounded-2xl border border-border-strong bg-gradient-card-raised shadow-elev-lg overflow-hidden">
@@ -58,15 +29,15 @@ export const FocusTimer = () => {
 
       <div className="relative">
         <div className="flex items-center justify-between mb-5">
-          <div>
+          <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold">Focus Session</div>
-            <h3 className="font-display text-2xl font-bold mt-1 tracking-tight">
-              {mode === "focus" ? "Deep Work" : "Recover"}
+            <h3 className="font-display text-2xl font-bold mt-1 tracking-tight truncate">
+              {mode === "focus" ? taskTitle ?? "Deep Work" : "Recover"}
             </h3>
           </div>
-          <div className="flex items-center gap-1 p-1 rounded-full bg-background/60 border border-border backdrop-blur">
+          <div className="flex items-center gap-1 p-1 rounded-full bg-background/60 border border-border backdrop-blur shrink-0">
             <button
-              onClick={() => switchMode("focus")}
+              onClick={() => setMode("focus")}
               className={cn(
                 "press px-3 py-1.5 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all",
                 mode === "focus" ? "bg-secondary text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
@@ -75,7 +46,7 @@ export const FocusTimer = () => {
               <Brain className="h-3 w-3" /> Focus
             </button>
             <button
-              onClick={() => switchMode("break")}
+              onClick={() => setMode("break")}
               className={cn(
                 "press px-3 py-1.5 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all",
                 mode === "break" ? "bg-secondary text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
@@ -88,10 +59,7 @@ export const FocusTimer = () => {
 
         <div className="flex items-center justify-center my-6">
           <div className="relative h-60 w-60">
-            {/* Ambient glow ring */}
-            {running && (
-              <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-ember-glow" />
-            )}
+            {running && <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-ember-glow" />}
             <svg className="relative w-full h-full -rotate-90" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r={radius} stroke="hsl(var(--border))" strokeWidth="6" fill="none" />
               <circle
@@ -136,7 +104,7 @@ export const FocusTimer = () => {
             <RotateCcw className="h-4 w-4" />
           </Button>
           <Button
-            onClick={() => setRunning((r) => !r)}
+            onClick={onPrimary}
             className={cn(
               "press h-14 px-10 rounded-full font-bold text-base bg-gradient-ember text-primary-foreground shadow-ember-lg hover:shadow-ember hover:-translate-y-0.5 transition-all",
               running && "animate-ember-pulse"
