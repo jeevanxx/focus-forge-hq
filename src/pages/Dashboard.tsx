@@ -320,7 +320,17 @@ const Dashboard = () => {
               {remainingTasks.map((t) => (
                 <TaskCard key={t.id} task={t} onToggle={toggle} />
               ))}
+              {!remainingTasks.length && (
+                <NewTaskDialog
+                  trigger={
+                    <button className="w-full p-8 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm hover:border-primary/40 hover:text-foreground transition-colors">
+                      Nothing queued for today. Add your first task.
+                    </button>
+                  }
+                />
+              )}
             </div>
+
           </section>
 
           {/* Habits */}
@@ -381,9 +391,14 @@ const Dashboard = () => {
       </div>
 
       {/* Floating new-task button (desktop) */}
-      <button className="press hidden lg:inline-flex fixed bottom-8 right-24 z-30 items-center gap-2 text-sm font-bold px-5 py-3.5 rounded-2xl bg-card/70 backdrop-blur-xl border border-border-strong text-foreground shadow-elev-lg hover:border-primary/50 hover:-translate-y-0.5 transition-all">
-        <Plus className="h-4 w-4 text-primary" strokeWidth={2.5} /> New task
-      </button>
+      <NewTaskDialog
+        trigger={
+          <button className="press hidden lg:inline-flex fixed bottom-8 right-24 z-30 items-center gap-2 text-sm font-bold px-5 py-3.5 rounded-2xl bg-card/70 backdrop-blur-xl border border-border-strong text-foreground shadow-elev-lg hover:border-primary/50 hover:-translate-y-0.5 transition-all">
+            <Plus className="h-4 w-4 text-primary" strokeWidth={2.5} /> New task
+          </button>
+        }
+      />
+
     </div>
   );
 };
