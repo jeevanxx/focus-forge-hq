@@ -1,12 +1,17 @@
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
-import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
+import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTasks } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions } from "@/hooks/useFocusSessions";
+import { useFocus } from "@/context/FocusContext";
+import { getWeeklyFocus } from "@/lib/analytics";
+
 
 /* ---------- Mini stat tile (secondary) ---------- */
 
