@@ -14,7 +14,181 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      focus_sessions: {
+        Row: {
+          created_at: string
+          duration_min: number
+          id: string
+          started_at: string
+          task_id: string | null
+          task_title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_min: number
+          id?: string
+          started_at?: string
+          task_id?: string | null
+          task_title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_min?: number
+          id?: string
+          started_at?: string
+          task_id?: string | null
+          task_title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_sessions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          habit_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          habit_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          habit_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_entries_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          archived: boolean
+          color: Database["public"]["Enums"]["habit_color"]
+          created_at: string
+          emoji: string
+          id: string
+          name: string
+          target: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: Database["public"]["Enums"]["habit_color"]
+          created_at?: string
+          emoji?: string
+          id?: string
+          name: string
+          target?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: Database["public"]["Enums"]["habit_color"]
+          created_at?: string
+          emoji?: string
+          id?: string
+          name?: string
+          target?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          done: boolean
+          due_date: string
+          estimate_min: number | null
+          id: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          tag: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string
+          estimate_min?: number | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          tag?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string
+          estimate_min?: number | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          tag?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +197,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      habit_color: "ember" | "amber" | "violet" | "teal"
+      task_priority: "low" | "med" | "high"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +325,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      habit_color: ["ember", "amber", "violet", "teal"],
+      task_priority: ["low", "med", "high"],
+    },
   },
 } as const
