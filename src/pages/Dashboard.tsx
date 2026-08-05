@@ -38,13 +38,19 @@ const MiniStat = ({
 
 const Dashboard = () => {
   const today = new Date();
-  const [tasks, setTasks] = useState(mockTasks);
-  const todayTasks = tasks.filter((t) => t.dueDate === format(today, "yyyy-MM-dd"));
+  const todayKey = format(today, "yyyy-MM-dd");
+  const { tasks, toggleTask } = useTasks();
+  const { habits, toggleToday } = useHabits();
+  const { sessions } = useFocusSessions();
+  const { start } = useFocus();
+
+  const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
   const done = todayTasks.filter((t) => t.done).length;
   const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
+  const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
   const focusGoal = 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
+  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
   // Active task = first incomplete, sorted by priority high → med → low
   const priorityOrder = { high: 0, med: 1, low: 2 };
@@ -55,8 +61,9 @@ const Dashboard = () => {
   // Remaining tasks (excluding active)
   const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
 
-  const toggle = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = (id: string) => toggleTask.mutate(id);
+
+
 
   return (
     <div className="px-5 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto animate-fade-in">
