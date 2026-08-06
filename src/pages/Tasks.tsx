@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { Plus, Search } from "lucide-react";
@@ -13,10 +13,26 @@ const Tasks = () => {
   const { tasks, isLoading, toggleTask } = useTasks();
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  /**
+   * OPTIMIZATION: Debounce the search query state by 300ms.
+   * Typing triggers immediate re-renders and re-filtering across possibly large task backlogs.
+   * By debouncing, we restrict expensive list filtering and DOM rendering updates until typing pauses.
+   */
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [query]);
 
   const today = new Date().toISOString().slice(0, 10);
   const filtered = tasks.filter((t) => {
-    if (query && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
+    if (debouncedQuery && !t.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
     if (filter === "Today") return t.dueDate === today;
     if (filter === "High") return t.priority === "high";
     if (filter === "Done") return t.done;

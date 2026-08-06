@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
@@ -24,7 +25,7 @@ const MiniStat = ({
   label: string;
   value: string;
   sub: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }) => (
   <div className="group relative p-4 rounded-2xl border border-border bg-card/40 backdrop-blur-xl shadow-soft hover:border-border-strong hover:bg-card/70 lift overflow-hidden">
     <div className="flex items-center justify-between mb-2">
@@ -44,22 +45,50 @@ const Dashboard = () => {
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
 
-  const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
-  const done = todayTasks.filter((t) => t.done).length;
-  const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
-  const focusGoal = 180;
-  const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
-  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+  /**
+   * OPTIMIZATION: Memoize all calculated task, focus, and streak statistics.
+   * This avoids re-filtering, re-sorting, and re-aggregating on every re-render (e.g., when timer ticks).
+   * Dependency on stable todayKey (string) instead of volatile today (Date) prevents redundant executions.
+   */
+  const {
+    todayTasks,
+    done,
+    completion,
+    todayMin,
+    focusPct,
+    bestStreak,
+    activeTask,
+    remainingTasks,
+  } = useMemo(() => {
+    const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
+    const done = todayTasks.filter((t) => t.done).length;
+    const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
 
-  // Active task = first incomplete, sorted by priority high → med → low
-  const priorityOrder = { high: 0, med: 1, low: 2 };
-  const activeTask = [...todayTasks]
-    .filter((t) => !t.done)
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
+    // Create a local today Date inside useMemo to keep dependency array stable
+    const localToday = new Date();
+    const todayMin = getWeeklyFocus(sessions, localToday).find((d) => d.date === todayKey)?.minutes ?? 0;
+    const focusGoal = 180;
+    const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
+    const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
-  // Remaining tasks (excluding active)
-  const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+    const priorityOrder = { high: 0, med: 1, low: 2 };
+    const activeTask = [...todayTasks]
+      .filter((t) => !t.done)
+      .sort((a, b) => priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder])[0];
+
+    const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+
+    return {
+      todayTasks,
+      done,
+      completion,
+      todayMin,
+      focusPct,
+      bestStreak,
+      activeTask,
+      remainingTasks,
+    };
+  }, [tasks, sessions, habits, todayKey]);
 
   const toggle = (id: string) => toggleTask.mutate(id);
 
