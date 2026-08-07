@@ -15,6 +15,20 @@ Rules of engagement:
 - Use **bold** for the task the user should start. Keep replies under 90 words.
 - If the user is genuinely clear (no open tasks), tell them to stop manufacturing work and rest.`;
 
+interface TaskContext {
+  title: string;
+  priority: string;
+  dueDate: string;
+  estimateMin?: number;
+  overdue?: boolean;
+}
+
+interface HabitContext {
+  name: string;
+  streak: number;
+  doneToday: boolean;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,12 +47,12 @@ Deno.serve(async (req) => {
     const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
+${(context?.tasks ?? []).map((t: TaskContext) =>
   `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${(context?.habits ?? []).map((h: HabitContext) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
 FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
 
