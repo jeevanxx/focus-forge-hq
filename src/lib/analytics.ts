@@ -83,14 +83,30 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-calculate the date keys for each of the 7 days of the week.
+  // This allows an O(1) lookup map to be constructed for the result days.
+  const daysMap = new Map<string, { day: (typeof WEEK_LABELS)[number]; date: string; minutes: number }>();
+  const resultsList = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    const item = { day, date: dateKey, minutes: 0 };
+    daysMap.set(dateKey, item);
+    return item;
   });
+
+  // Single-pass optimization: iterate through sessions only once (O(N)),
+  // instead of O(7 * N) with redundant date formatting and parsing.
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const sessionDateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const target = daysMap.get(sessionDateKey);
+    if (target) {
+      target.minutes += s.durationMin;
+    }
+  }
+
+  return resultsList;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
