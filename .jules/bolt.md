@@ -1,0 +1,3 @@
+## 2025-02-12 - Timezone-Aware Weekly Focus Optimization
+**Learning:** `getWeeklyFocus` inside `src/lib/analytics.ts` originally used nested filtering/aggregating that executed a parsing and formatting pattern `format(parseISO(s.date), "yyyy-MM-dd")` seven times for every single session (complexity of O(7N)). Simply extracting date slices like `s.date.slice(0, 10)` can break timezone consistency across systems. Keeping timezone-safe formatting but moving it into an O(N) single-pass iteration using an indexing lookup map provides a massive speedup.
+**Action:** Always optimize date-based arrays with a single-pass iteration and hash/map lookup while retaining timezone-accurate formatters rather than using nested filtering.
