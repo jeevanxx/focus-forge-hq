@@ -1,0 +1,4 @@
+## 2025-05-18 - CSS and HTML Injection via Unsanitized Chart Styles
+**Vulnerability:** Unsanitized `id`, `config` keys, and `color` properties in `src/components/ui/chart.tsx` were directly interpolated into raw CSS strings inside `<style dangerouslySetInnerHTML={{ __html: ... }} />`.
+**Learning:** Reusable chart components in UI libraries often convert theme colors and keys into dynamic CSS custom properties (`--color-${key}: ${color}`). Without sanitization, malicious strings or external data can break out of CSS blocks, inject HTML/script tags, or trigger unauthorized outbound tracking/SSRF via `url()` constructs.
+**Prevention:** Always sanitize dynamic IDs, custom property keys (whitelisting `/[^a-zA-Z0-9_-]/g`), and CSS variable values (stripping `; { } [ ] " ' < > \` and stripping `url()` constructs) prior to constructing dynamic `<style>` blocks in React components.
