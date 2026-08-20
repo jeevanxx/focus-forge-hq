@@ -1,0 +1,4 @@
+## 2026-08-20 - CSS Injection & SSRF via Dynamic Chart Style Tags
+**Vulnerability:** Unsanitized chart IDs, configuration keys, and color values injected into `<style dangerouslySetInnerHTML>` allowed CSS syntax breakouts, arbitrary HTML/script element injection via tag closures (`</style>`), and potential SSRF/tracking pixel leaks via `url(...)` constructs in custom color attributes.
+**Learning:** React components that construct `<style>` tags directly from user or dynamic data bypass standard React JSX auto-escaping, requiring explicit sanitization for CSS selectors, custom variable keys, and property values.
+**Prevention:** Always sanitize dynamic identifiers to alphanumeric/dash/underscore character sets (`/[^a-zA-Z0-9_-]/g`), strip breakout characters (`;`, `{`, `}`, `[`, `]`, `"`, `'`, `<`, `>`, `\`), and eliminate `url(...)` functions when injecting styles dynamically into the DOM.
