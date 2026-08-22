@@ -1,0 +1,3 @@
+## 2025-03-10 - O(N) Weekly Analytics Aggregation
+**Learning:** `getWeeklyFocus` in `src/lib/analytics.ts` previously spent O(7N) executing date parsing (`parseISO`) and string formatting (`format`) 7 times per session inside a nested `.filter()` loop over 7 week days. Pre-calculating week date strings into a `Map<string, number>` allows aggregating session focus minutes in a single O(N) pass, reducing runtime from O(7N) to O(N + 7) while preserving local timezone behavior.
+**Action:** Always prefer Map/dictionary lookups over repeated `.filter()` iterations when bucketing time-series session data by calendar keys.
