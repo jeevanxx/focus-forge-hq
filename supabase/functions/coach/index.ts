@@ -1,4 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { sanitizeMessages, sanitizeContext } from "../../../src/lib/coachSanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,17 +31,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { safeTasks, safeHabits, focusMinutesToday, focusMinutesWeek, bestWindow } = sanitizeContext(context);
+    const safeMessages = sanitizeMessages(messages);
+
     const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
-  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
+${safeTasks.map((t: Record<string, unknown>) =>
+  `- ${String(t?.title ?? "").slice(0, 100)} | ${t?.priority ?? "normal"} | ${t?.dueDate ?? "none"} | ${t?.estimateMin ?? 25}m | ${t?.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${safeHabits.map((h: Record<string, unknown>) => `- ${String(h?.name ?? "").slice(0, 100)} | ${h?.streak ?? 0}d | ${h?.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${focusMinutesToday} minutes logged today, ${focusMinutesWeek} this week. Peak window: ${bestWindow}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +57,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...safeMessages,
         ],
       }),
     });
