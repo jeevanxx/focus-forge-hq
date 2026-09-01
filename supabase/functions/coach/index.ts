@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, context } = await req.json();
+    const rawBody = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI is not configured." }), {
@@ -30,17 +30,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    const sanitizeMsg = (msgs: unknown[]) => {
+      if (!Array.isArray(msgs)) return [];
+      return msgs
+        .filter((m) => m && typeof m === "object" && ((m as Record<string, unknown>).role === "user" || (m as Record<string, unknown>).role === "assistant") && typeof (m as Record<string, unknown>).content === "string")
+        .map((m) => {
+          const item = m as Record<string, unknown>;
+          return { role: item.role as "user" | "assistant", content: String(item.content).slice(0, 1000) };
+        })
+        .slice(-10);
+    };
+
+    const ctx = rawBody?.context && typeof rawBody.context === "object" ? (rawBody.context as Record<string, unknown>) : {};
+    const messages = sanitizeMsg(Array.isArray(rawBody?.messages) ? rawBody.messages : []);
+
+    const tasks = Array.isArray(ctx.tasks) ? ctx.tasks.slice(0, 20) : [];
+    const habits = Array.isArray(ctx.habits) ? ctx.habits.slice(0, 20) : [];
+
+    const contextBlock = `Current time: ${typeof ctx.now === "string" ? ctx.now.slice(0, 50) : new Date().toISOString()}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
-  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
-).join("\n") || "- none"}
+${tasks.map((t) => {
+  const item = (t && typeof t === "object" ? t : {}) as Record<string, unknown>;
+  return `- ${String(item.title ?? "").slice(0, 200)} | ${String(item.priority ?? "medium").slice(0, 50)} | ${String(item.dueDate ?? "").slice(0, 50)} | ${Number(item.estimateMin) || 25}m | ${item.overdue ? "OVERDUE" : "on time"}`;
+}).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${habits.map((h) => {
+  const item = (h && typeof h === "object" ? h : {}) as Record<string, unknown>;
+  return `- ${String(item.name ?? "").slice(0, 200)} | ${Number(item.streak) || 0}d | ${item.doneToday ? "yes" : "no"}`;
+}).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${Number(ctx.focusMinutesToday) || 0} minutes logged today, ${Number(ctx.focusMinutesWeek) || 0} this week. Peak window: ${String(ctx.bestWindow ?? "unknown").slice(0, 100)}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +74,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...messages,
         ],
       }),
     });
