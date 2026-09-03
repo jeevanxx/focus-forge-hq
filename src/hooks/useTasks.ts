@@ -91,6 +91,24 @@ export const useTasks = () => {
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
+  const updateTask = useMutation({
+    mutationFn: async ({ id, ...input }: NewTask & { id: string }) => {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: input.title,
+          notes: input.notes || null,
+          priority: input.priority,
+          due_date: input.dueDate,
+          estimate_min: input.estimateMin ?? null,
+          tag: input.tag || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+
   const deleteTask = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("tasks").delete().eq("id", id);
@@ -104,6 +122,7 @@ export const useTasks = () => {
     isLoading: query.isLoading,
     error: query.error,
     createTask,
+    updateTask,
     toggleTask,
     deleteTask,
   };

@@ -128,6 +128,17 @@ export const useHabits = () => {
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
+  const updateHabit = useMutation({
+    mutationFn: async ({ id, ...input }: NewHabit & { id: string }) => {
+      const { error } = await supabase
+        .from("habits")
+        .update({ name: input.name, emoji: input.emoji, color: input.color, target: input.target })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+
   const deleteHabit = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("habits").delete().eq("id", id);
@@ -140,6 +151,7 @@ export const useHabits = () => {
     habits: query.data ?? [],
     isLoading: query.isLoading,
     createHabit,
+    updateHabit,
     toggleToday,
     deleteHabit,
   };
