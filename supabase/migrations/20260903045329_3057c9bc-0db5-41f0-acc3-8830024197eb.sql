@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS focus_goal_min integer NOT NULL DEFAULT 180;
