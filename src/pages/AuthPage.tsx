@@ -43,6 +43,16 @@ const AuthPage = () => {
     navigate("/", { replace: true });
   };
 
+  const handleGoogle = async () => {
+    setSubmitting(true);
+    const { error } = await signInWithGoogle();
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Google sign in failed", description: error.message, variant: "destructive" });
+    }
+    // On success the browser redirects to Google — nothing else to do.
+  };
+
   return (
     <div className="relative min-h-screen w-full grid place-items-center bg-background px-5 py-10">
       <div className="absolute inset-0 -z-0 opacity-60">
