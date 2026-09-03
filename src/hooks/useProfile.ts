@@ -37,7 +37,7 @@ export const useProfile = () => {
   const updateProfile = useMutation({
     mutationFn: async (input: { displayName?: string; focusGoalMin?: number }) => {
       if (!user) throw new Error("Not signed in");
-      const patch: Record<string, unknown> = {};
+      const patch: { display_name?: string; focus_goal_min?: number } = {};
       if (input.displayName !== undefined) patch.display_name = input.displayName;
       if (input.focusGoalMin !== undefined) patch.focus_goal_min = input.focusGoalMin;
       const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
