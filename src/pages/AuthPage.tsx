@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 type Mode = "signin" | "signup";
 
 const AuthPage = () => {
-  const { signIn, signUp, user, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
