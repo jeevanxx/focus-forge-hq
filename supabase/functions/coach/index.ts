@@ -30,17 +30,52 @@ Deno.serve(async (req) => {
       });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    interface CoachTask {
+      title?: string;
+      priority?: string;
+      dueDate?: string;
+      estimateMin?: number;
+      overdue?: boolean;
+    }
+
+    interface CoachHabit {
+      name?: string;
+      streak?: number;
+      doneToday?: boolean;
+    }
+
+    const tasks: CoachTask[] = Array.isArray(context?.tasks) ? context.tasks.slice(0, 20) : [];
+    const habits: CoachHabit[] = Array.isArray(context?.habits) ? context.habits.slice(0, 20) : [];
+
+    const contextBlock = `Current time: ${typeof context?.now === "string" ? context.now.slice(0, 50) : new Date().toISOString()}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
-  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
+${tasks.map((t) =>
+  `- ${t.title ?? "Untitled"} | ${t.priority ?? "medium"} | ${t.dueDate ?? ""} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${habits.map((h) => `- ${h.name ?? "Habit"} | ${h.streak ?? 0}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
 FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+
+    interface CoachInputMessage {
+      role?: string;
+      content?: string;
+      text?: string;
+    }
+
+    const safeMessages = Array.isArray(messages)
+      ? messages
+          .filter((m): m is CoachInputMessage => typeof m === "object" && m !== null)
+          .map((m) => {
+            const role = m.role === "assistant" ? "assistant" : "user";
+            const raw = typeof m.content === "string" ? m.content : typeof m.text === "string" ? m.text : "";
+            return { role, content: raw.trim().slice(0, 1000) };
+          })
+          .filter((m) => m.content.length > 0)
+          .slice(-10)
+      : [];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +88,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...safeMessages,
         ],
       }),
     });
