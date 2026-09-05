@@ -1,6 +1,6 @@
 import { Habit } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, Flame } from "lucide-react";
+import { Check, Flame, Pencil, Trash2 } from "lucide-react";
 
 const colorMap = {
   ember: "from-primary to-primary-glow shadow-ember",
@@ -9,7 +9,14 @@ const colorMap = {
   teal: "from-[hsl(170_70%_45%)] to-[hsl(190_70%_55%)]",
 };
 
-export const HabitRow = ({ habit, onToggle }: { habit: Habit; onToggle?: (id: string) => void }) => {
+interface Props {
+  habit: Habit;
+  onToggle?: (id: string) => void;
+  onEdit?: (habit: Habit) => void;
+  onDelete?: (id: string) => void;
+}
+
+export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
   const completed = habit.history.filter(Boolean).length;
   const pct = Math.round((completed / Math.max(1, habit.target)) * 100);
   const doneToday = habit.history[habit.history.length - 1];
