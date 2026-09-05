@@ -1,16 +1,33 @@
+import { useState } from "react";
 import { HabitRow } from "@/components/HabitRow";
 import { NewHabitDialog } from "@/components/NewHabitDialog";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { Plus, Flame, TrendingUp } from "lucide-react";
 import { useHabits } from "@/hooks/useHabits";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
+import type { Habit } from "@/lib/types";
 
 const Habits = () => {
-  const { habits, isLoading, toggleToday } = useHabits();
+  const { habits, isLoading, toggleToday, deleteHabit } = useHabits();
+  const [editing, setEditing] = useState<Habit | null>(null);
+  const [deleting, setDeleting] = useState<Habit | null>(null);
 
   const totalStreak = habits.reduce((s, h) => s + h.streak, 0);
   const completedThisWeek = habits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
   const targetThisWeek = habits.reduce((s, h) => s + h.target, 0);
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    try {
+      await deleteHabit.mutateAsync(deleting.id);
+      toast({ title: "Habit deleted" });
+      setDeleting(null);
+    } catch (err) {
+      toast({ title: "Could not delete habit", description: (err as Error).message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
@@ -58,7 +75,13 @@ const Habits = () => {
       <div className="space-y-2.5">
         {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         {!isLoading && habits.map((h) => (
-          <HabitRow key={h.id} habit={h} onToggle={(id) => toggleToday.mutate(id)} />
+          <HabitRow
+            key={h.id}
+            habit={h}
+            onToggle={(id) => toggleToday.mutate(id)}
+            onEdit={(habit) => setEditing(habit)}
+            onDelete={(id) => setDeleting(habits.find((x) => x.id === id) ?? null)}
+          />
         ))}
         {!isLoading && !habits.length && (
           <div className="p-12 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
@@ -66,6 +89,23 @@ const Habits = () => {
           </div>
         )}
       </div>
+
+      {editing && (
+        <NewHabitDialog
+          habit={editing}
+          open={!!editing}
+          onOpenChange={(o) => !o && setEditing(null)}
+        />
+      )}
+
+      <ConfirmDeleteDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title="Delete this habit?"
+        description={deleting ? `"${deleting.name}" and its check-in history will be removed.` : ""}
+        onConfirm={confirmDelete}
+        pending={deleteHabit.isPending}
+      />
     </div>
   );
 };
