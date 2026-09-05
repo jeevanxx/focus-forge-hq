@@ -1,6 +1,6 @@
 import { Habit } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, Flame } from "lucide-react";
+import { Check, Flame, Pencil, Trash2 } from "lucide-react";
 
 const colorMap = {
   ember: "from-primary to-primary-glow shadow-ember",
@@ -9,7 +9,14 @@ const colorMap = {
   teal: "from-[hsl(170_70%_45%)] to-[hsl(190_70%_55%)]",
 };
 
-export const HabitRow = ({ habit, onToggle }: { habit: Habit; onToggle?: (id: string) => void }) => {
+interface Props {
+  habit: Habit;
+  onToggle?: (id: string) => void;
+  onEdit?: (habit: Habit) => void;
+  onDelete?: (id: string) => void;
+}
+
+export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
   const completed = habit.history.filter(Boolean).length;
   const pct = Math.round((completed / Math.max(1, habit.target)) * 100);
   const doneToday = habit.history[habit.history.length - 1];
@@ -55,6 +62,29 @@ export const HabitRow = ({ habit, onToggle }: { habit: Habit; onToggle?: (id: st
           />
         ))}
       </div>
+
+      {(onEdit || onDelete) && (
+        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(habit)}
+              aria-label={`Edit ${habit.name}`}
+              className="press h-8 w-8 rounded-lg grid place-items-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(habit.id)}
+              aria-label={`Delete ${habit.name}`}
+              className="press h-8 w-8 rounded-lg grid place-items-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {onToggle && (
         <button

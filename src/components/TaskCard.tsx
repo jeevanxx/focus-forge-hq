@@ -1,11 +1,13 @@
 import { Task } from "@/lib/types";
-import { Check, Clock, Zap } from "lucide-react";
+import { Check, Clock, Pencil, Trash2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 interface Props {
   task: Task;
   onToggle?: (id: string) => void;
+  onEdit?: (task: Task) => void;
+  onDelete?: (id: string) => void;
   isActive?: boolean;
 }
 
@@ -23,7 +25,8 @@ const priorityBar = {
 
 const priorityLabel = { high: "High", med: "Med", low: "Low" };
 
-export const TaskCard = ({ task, onToggle, isActive = false }: Props) => {
+export const TaskCard = ({ task, onToggle, onEdit, onDelete, isActive = false }: Props) => {
+  const hasActions = !!(onEdit || onDelete);
   return (
     <motion.div
       layout
@@ -45,9 +48,36 @@ export const TaskCard = ({ task, onToggle, isActive = false }: Props) => {
 
       {/* Active indicator pulse */}
       {isActive && !task.done && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40">
+        <div className={cn(
+          "absolute top-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40",
+          hasActions ? "right-16" : "right-3"
+        )}>
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shadow-glow-primary" />
           <span className="text-[9px] uppercase tracking-wider font-bold text-primary">Now</span>
+        </div>
+      )}
+
+      {/* Edit / delete actions */}
+      {hasActions && (
+        <div className="absolute top-3 right-3 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              aria-label={`Edit ${task.title}`}
+              className="press h-6 w-6 rounded-md grid place-items-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(task.id)}
+              aria-label={`Delete ${task.title}`}
+              className="press h-6 w-6 rounded-md grid place-items-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
         </div>
       )}
 

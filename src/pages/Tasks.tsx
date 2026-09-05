@@ -1,18 +1,23 @@
 import { useState } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
+import type { Task } from "@/lib/types";
 
 const filters = ["All", "Today", "High", "Done"] as const;
 type Filter = typeof filters[number];
 
 const Tasks = () => {
-  const { tasks, isLoading, toggleTask } = useTasks();
+  const { tasks, isLoading, toggleTask, deleteTask } = useTasks();
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState<Task | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
   const filtered = tasks.filter((t) => {
@@ -22,6 +27,17 @@ const Tasks = () => {
     if (filter === "Done") return t.done;
     return true;
   });
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    try {
+      await deleteTask.mutateAsync(deleting.id);
+      toast({ title: "Task deleted" });
+      setDeleting(null);
+    } catch (err) {
+      toast({ title: "Could not delete task", description: (err as Error).message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
@@ -70,13 +86,40 @@ const Tasks = () => {
 
       <div className="space-y-2.5">
         {isLoading && [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-        {!isLoading && filtered.map((t) => <TaskCard key={t.id} task={t} onToggle={(id) => toggleTask.mutate(id)} />)}
+        {!isLoading && filtered.map((t) => (
+          <TaskCard
+            key={t.id}
+            task={t}
+            onToggle={(id) => toggleTask.mutate(id)}
+            onEdit={(task) => setEditing(task)}
+            onDelete={(id) => setDeleting(tasks.find((x) => x.id === id) ?? null)}
+          />
+        ))}
         {!isLoading && !filtered.length && (
           <div className="p-12 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
             {tasks.length ? "No tasks match. Try a different filter." : "No tasks yet. Add the one you've been avoiding."}
           </div>
         )}
       </div>
+
+      {/* Edit dialog (controlled) */}
+      {editing && (
+        <NewTaskDialog
+          trigger={null}
+          task={editing}
+          open={!!editing}
+          onOpenChange={(o) => !o && setEditing(null)}
+        />
+      )}
+
+      <ConfirmDeleteDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title="Delete this task?"
+        description={deleting ? `"${deleting.title}" will be gone for good.` : ""}
+        onConfirm={confirmDelete}
+        pending={deleteTask.isPending}
+      />
     </div>
   );
 };
