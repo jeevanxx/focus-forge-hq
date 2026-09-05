@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { format } from "date-fns";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -10,11 +10,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTasks } from "@/hooks/useTasks";
 import { toast } from "@/hooks/use-toast";
-import type { Priority } from "@/lib/types";
+import type { Priority, Task } from "@/lib/types";
 
-export const NewTaskDialog = ({ trigger, defaultDate }: { trigger: ReactNode; defaultDate?: Date }) => {
-  const { createTask } = useTasks();
-  const [open, setOpen] = useState(false);
+interface Props {
+  trigger: ReactNode;
+  defaultDate?: Date;
+  /** When provided, the dialog edits this task instead of creating a new one. */
+  task?: Task;
+  /** Controlled open state (used for edit mode launched from a card menu). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOpenChange }: Props) => {
+  const { createTask, updateTask } = useTasks();
+  const [openInternal, setOpenInternal] = useState(false);
+  const open = openProp ?? openInternal;
+  const setOpen = onOpenChange ?? setOpenInternal;
+
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [priority, setPriority] = useState<Priority>("high");
@@ -22,32 +35,54 @@ export const NewTaskDialog = ({ trigger, defaultDate }: { trigger: ReactNode; de
   const [estimate, setEstimate] = useState("25");
   const [tag, setTag] = useState("");
 
+  // Prefill when editing; reset when creating.
+  useEffect(() => {
+    if (!open) return;
+    if (task) {
+      setTitle(task.title);
+      setNotes(task.notes ?? "");
+      setPriority(task.priority);
+      setDueDate(task.dueDate);
+      setEstimate(task.estimateMin ? String(task.estimateMin) : "");
+      setTag(task.tag ?? "");
+    }
+  }, [open, task]);
+
+  const isEdit = !!task;
+  const pending = createTask.isPending || updateTask.isPending;
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    const payload = {
+      title: title.trim(),
+      notes: notes.trim() || undefined,
+      priority,
+      dueDate,
+      estimateMin: estimate ? Number(estimate) : undefined,
+      tag: tag.trim() || undefined,
+    };
     try {
-      await createTask.mutateAsync({
-        title: title.trim(),
-        notes: notes.trim() || undefined,
-        priority,
-        dueDate,
-        estimateMin: estimate ? Number(estimate) : undefined,
-        tag: tag.trim() || undefined,
-      });
-      toast({ title: "Task added", description: "It's on the board. Now go do it." });
+      if (isEdit) {
+        await updateTask.mutateAsync({ id: task.id, ...payload });
+        toast({ title: "Task updated" });
+      } else {
+        await createTask.mutateAsync(payload);
+        toast({ title: "Task added", description: "It's on the board. Now go do it." });
+      }
       setTitle(""); setNotes(""); setTag(""); setOpen(false);
     } catch (err) {
-      toast({ title: "Could not add task", description: (err as Error).message, variant: "destructive" });
+      toast({ title: isEdit ? "Could not update task" : "Could not add task", description: (err as Error).message, variant: "destructive" });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl tracking-tight">New task</DialogTitle>
-          <DialogDescription>Be specific. Vague tasks never get done.</DialogDescription>
+          <DialogTitle className="font-display text-2xl tracking-tight">{isEdit ? "Edit task" : "New task"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Refine it. Clarity wins." : "Be specific. Vague tasks never get done."}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
@@ -84,8 +119,8 @@ export const NewTaskDialog = ({ trigger, defaultDate }: { trigger: ReactNode; de
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={createTask.isPending} className="w-full bg-gradient-ember text-primary-foreground shadow-ember font-bold">
-              {createTask.isPending ? "Adding…" : "Add task"}
+            <Button type="submit" disabled={pending} className="w-full bg-gradient-ember text-primary-foreground shadow-ember font-bold">
+              {pending ? (isEdit ? "Saving…" : "Adding…") : isEdit ? "Save changes" : "Add task"}
             </Button>
           </DialogFooter>
         </form>
