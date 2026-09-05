@@ -63,6 +63,29 @@ export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
         ))}
       </div>
 
+      {(onEdit || onDelete) && (
+        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(habit)}
+              aria-label={`Edit ${habit.name}`}
+              className="press h-8 w-8 rounded-lg grid place-items-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(habit.id)}
+              aria-label={`Delete ${habit.name}`}
+              className="press h-8 w-8 rounded-lg grid place-items-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {onToggle && (
         <button
           onClick={() => onToggle(habit.id)}
