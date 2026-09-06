@@ -29,6 +29,20 @@ function useChart() {
   return context;
 }
 
+// Sanitizes chart CSS selector IDs to alphanumeric, dash, and underscore characters.
+const sanitizeId = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, "");
+
+// Sanitizes CSS variable key names to prevent CSS property breakout.
+const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_-]/g, "");
+
+// Sanitizes color values to prevent CSS injection, HTML tag breakout, and SSRF/tracking pixel leaks via url().
+const sanitizeColor = (color: string): string => {
+  if (typeof color !== "string") return "";
+  if (/url\s*\(/i.test(color)) return "";
+  if (/[;{}[\]"'<>\\]/.test(color)) return "";
+  return color;
+};
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -37,7 +51,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const rawId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(rawId);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,18 +80,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const safeKey = sanitizeKey(key);
+    const safeColor = rawColor ? sanitizeColor(rawColor) : "";
+    return safeKey && safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
