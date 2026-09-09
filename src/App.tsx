@@ -13,6 +13,8 @@ import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Analytics from "./pages/Analytics";
 import AuthPage from "./pages/AuthPage";
+import ResetPassword from "./pages/ResetPassword";
+import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
