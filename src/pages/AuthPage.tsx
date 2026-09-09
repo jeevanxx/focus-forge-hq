@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot";
 
 const AuthPage = () => {
-  const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
