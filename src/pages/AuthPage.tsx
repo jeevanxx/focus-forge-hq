@@ -87,12 +87,14 @@ const AuthPage = () => {
         <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-xl shadow-elev p-6 sm:p-8">
           <div className="mb-6">
             <h1 className="font-display text-2xl font-semibold tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Create your account"}
+              {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "signin"
                 ? "Sign in to continue forging focus."
-                : "Start building your discipline streak today."}
+                : mode === "signup"
+                  ? "Start building your discipline streak today."
+                  : "Enter your email and we'll send you a reset link."}
             </p>
           </div>
 
