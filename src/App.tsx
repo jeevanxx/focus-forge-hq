@@ -37,6 +37,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/settings" element={protectedShell(<SettingsPage />)} />
             <Route path="/" element={protectedShell(<Dashboard />)} />
             <Route path="/calendar" element={protectedShell(<CalendarPage />)} />
             <Route path="/tasks" element={protectedShell(<Tasks />)} />
