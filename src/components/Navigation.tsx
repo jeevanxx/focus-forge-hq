@@ -49,7 +49,21 @@ export const Sidebar = () => {
             )}
           </RouterNavLink>
         ))}
+        <RouterNavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              "press relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
+              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+              isActive && "bg-sidebar-accent text-sidebar-foreground shadow-soft border border-border-strong"
+            )
+          }
+        >
+          <Settings className="h-4 w-4" />
+          <span className="font-medium">Settings</span>
+        </RouterNavLink>
       </nav>
+
 
       <div className="m-3 p-4 rounded-2xl bg-gradient-primary-card border border-primary/30 shadow-elev relative overflow-hidden">
         <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/30 blur-2xl animate-ember-glow" />
