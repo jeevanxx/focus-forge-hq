@@ -88,9 +88,18 @@ export const MobileTopBar = () => (
       </div>
       <span className="font-display text-base font-semibold">Focus Forge</span>
     </div>
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
-      <Flame className="h-3 w-3 text-primary" />
-      <span className="text-xs font-semibold">12</span>
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
+        <Flame className="h-3 w-3 text-primary" />
+        <span className="text-xs font-semibold">12</span>
+      </div>
+      <RouterNavLink
+        to="/settings"
+        aria-label="Settings"
+        className="press h-8 w-8 grid place-items-center rounded-full bg-secondary border border-border text-muted-foreground"
+      >
+        <Settings className="h-4 w-4" />
+      </RouterNavLink>
     </div>
   </header>
 );
