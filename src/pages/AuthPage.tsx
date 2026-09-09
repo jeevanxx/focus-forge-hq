@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot";
 
 const AuthPage = () => {
-  const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -26,6 +26,19 @@ const AuthPage = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+
+    if (mode === "forgot") {
+      const { error } = await resetPassword(email);
+      setSubmitting(false);
+      if (error) {
+        toast({ title: "Could not send reset link", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Check your email", description: "We sent you a link to set a new password." });
+      setMode("signin");
+      return;
+    }
+
     const { error } = mode === "signin"
       ? await signIn(email, password)
       : await signUp(email, password);
@@ -74,12 +87,14 @@ const AuthPage = () => {
         <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-xl shadow-elev p-6 sm:p-8">
           <div className="mb-6">
             <h1 className="font-display text-2xl font-semibold tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Create your account"}
+              {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "signin"
                 ? "Sign in to continue forging focus."
-                : "Start building your discipline streak today."}
+                : mode === "signup"
+                  ? "Start building your discipline streak today."
+                  : "Enter your email and we'll send you a reset link."}
             </p>
           </div>
 

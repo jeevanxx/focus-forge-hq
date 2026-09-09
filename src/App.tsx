@@ -13,6 +13,8 @@ import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Analytics from "./pages/Analytics";
 import AuthPage from "./pages/AuthPage";
+import ResetPassword from "./pages/ResetPassword";
+import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/settings" element={protectedShell(<SettingsPage />)} />
             <Route path="/" element={protectedShell(<Dashboard />)} />
             <Route path="/calendar" element={protectedShell(<CalendarPage />)} />
             <Route path="/tasks" element={protectedShell(<Tasks />)} />

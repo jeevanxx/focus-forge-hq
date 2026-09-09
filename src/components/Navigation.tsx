@@ -1,5 +1,5 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, ListChecks, Flame, BarChart3 } from "lucide-react";
+import { Home, Calendar, ListChecks, Flame, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const navItems = [
@@ -49,7 +49,21 @@ export const Sidebar = () => {
             )}
           </RouterNavLink>
         ))}
+        <RouterNavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              "press relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
+              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+              isActive && "bg-sidebar-accent text-sidebar-foreground shadow-soft border border-border-strong"
+            )
+          }
+        >
+          <Settings className="h-4 w-4" />
+          <span className="font-medium">Settings</span>
+        </RouterNavLink>
       </nav>
+
 
       <div className="m-3 p-4 rounded-2xl bg-gradient-primary-card border border-primary/30 shadow-elev relative overflow-hidden">
         <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/30 blur-2xl animate-ember-glow" />
@@ -74,9 +88,18 @@ export const MobileTopBar = () => (
       </div>
       <span className="font-display text-base font-semibold">Focus Forge</span>
     </div>
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
-      <Flame className="h-3 w-3 text-primary" />
-      <span className="text-xs font-semibold">12</span>
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
+        <Flame className="h-3 w-3 text-primary" />
+        <span className="text-xs font-semibold">12</span>
+      </div>
+      <RouterNavLink
+        to="/settings"
+        aria-label="Settings"
+        className="press h-8 w-8 grid place-items-center rounded-full bg-secondary border border-border text-muted-foreground"
+      >
+        <Settings className="h-4 w-4" />
+      </RouterNavLink>
     </div>
   </header>
 );
