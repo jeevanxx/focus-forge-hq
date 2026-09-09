@@ -26,6 +26,19 @@ const AuthPage = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+
+    if (mode === "forgot") {
+      const { error } = await resetPassword(email);
+      setSubmitting(false);
+      if (error) {
+        toast({ title: "Could not send reset link", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Check your email", description: "We sent you a link to set a new password." });
+      setMode("signin");
+      return;
+    }
+
     const { error } = mode === "signin"
       ? await signIn(email, password)
       : await signUp(email, password);
