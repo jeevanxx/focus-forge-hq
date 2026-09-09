@@ -1,5 +1,5 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, ListChecks, Flame, BarChart3 } from "lucide-react";
+import { Home, Calendar, ListChecks, Flame, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const navItems = [
