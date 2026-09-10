@@ -11,6 +11,8 @@ import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { useFocus } from "@/context/FocusContext";
 import { getWeeklyFocus } from "@/lib/analytics";
+import { useProfile } from "@/hooks/useProfile";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 
 /* ---------- Mini stat tile (secondary) ---------- */
