@@ -220,6 +220,9 @@ const Dashboard = () => {
         </div>
       </section>
 
+      <OnboardingChecklist />
+
+
       {/* ============ NOW WORKING ON ============ */}
       {activeTask && (
         <motion.section
