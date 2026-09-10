@@ -189,7 +189,7 @@ const AuthPage = () => {
               </>
             ) : (
               <>
-                Already have an account?{" "}
+                {mode === "forgot" ? "Remembered it?" : "Already have an account?"}{" "}
                 <button
                   type="button"
                   onClick={() => setMode("signin")}
