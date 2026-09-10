@@ -11,6 +11,8 @@ import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { useFocus } from "@/context/FocusContext";
 import { getWeeklyFocus } from "@/lib/analytics";
+import { useProfile } from "@/hooks/useProfile";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 
 /* ---------- Mini stat tile (secondary) ---------- */
@@ -43,12 +45,13 @@ const Dashboard = () => {
   const { habits, toggleToday } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
+  const { profile } = useProfile();
 
   const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
   const done = todayTasks.filter((t) => t.done).length;
   const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
   const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
-  const focusGoal = 180;
+  const focusGoal = profile?.focusGoalMin ?? 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
@@ -216,6 +219,9 @@ const Dashboard = () => {
           </motion.div>
         </div>
       </section>
+
+      <OnboardingChecklist />
+
 
       {/* ============ NOW WORKING ON ============ */}
       {activeTask && (
