@@ -1,0 +1,4 @@
+## 2026-09-10 - ChartStyle CSS Injection and SSRF Prevention
+**Vulnerability:** `ChartStyle` in `src/components/ui/chart.tsx` rendered dynamic `id`, configuration keys, and CSS color values inside `<style dangerouslySetInnerHTML>` without sanitization. Malicious inputs could inject arbitrary CSS, break out of style definitions, or trigger unauthorized outbound GET requests (SSRF/tracking pixel leaks) using CSS `url(...)` declarations.
+**Learning:** React UI components (e.g. Shadcn/Recharts theme wrappers) that generate dynamic `<style>` rules based on user-driven or external config objects must strictly sanitize all dynamic inputs before inserting them into template strings.
+**Prevention:** Apply restrictive alphanumeric/dash/underscore filters for IDs and CSS custom property keys, strip CSS breakout characters (`{}[]<>"';\`), and explicitly reject/block `url()` constructs in dynamic color definitions.
