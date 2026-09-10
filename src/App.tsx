@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { AuthProvider } from "@/context/AuthContext";
 import { FocusProvider } from "@/context/FocusContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import Tasks from "./pages/Tasks";
