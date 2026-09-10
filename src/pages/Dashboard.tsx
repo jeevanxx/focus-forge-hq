@@ -45,12 +45,13 @@ const Dashboard = () => {
   const { habits, toggleToday } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
+  const { profile } = useProfile();
 
   const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
   const done = todayTasks.filter((t) => t.done).length;
   const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
   const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
-  const focusGoal = 180;
+  const focusGoal = profile?.focusGoalMin ?? 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
 
