@@ -15,13 +15,86 @@ Rules of engagement:
 - Use **bold** for the task the user should start. Keep replies under 90 words.
 - If the user is genuinely clear (no open tasks), tell them to stop manufacturing work and rest.`;
 
+interface TaskItem {
+  title?: string;
+  priority?: string;
+  dueDate?: string;
+  estimateMin?: number;
+  overdue?: boolean;
+}
+
+interface HabitItem {
+  name?: string;
+  streak?: number;
+  doneToday?: boolean;
+}
+
+function sanitizeMessages(messages: unknown) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter(
+      (msg): msg is { role: string; content: string } =>
+        typeof msg === "object" &&
+        msg !== null &&
+        "content" in msg &&
+        typeof (msg as { content?: unknown }).content === "string" &&
+        "role" in msg &&
+        ((msg as { role?: unknown }).role === "user" || (msg as { role?: unknown }).role === "assistant")
+    )
+    .slice(-10)
+    .map((msg) => ({
+      role: msg.role as "user" | "assistant",
+      content: String(msg.content).slice(0, 1000),
+    }));
+}
+
+function sanitizeContext(context: unknown) {
+  const ctx = (typeof context === "object" && context !== null ? context : {}) as Record<string, unknown>;
+
+  const tasks: TaskItem[] = Array.isArray(ctx.tasks)
+    ? ctx.tasks.slice(0, 20).map((t) => {
+        const item = (typeof t === "object" && t !== null ? t : {}) as Record<string, unknown>;
+        return {
+          title: typeof item.title === "string" ? item.title.slice(0, 200) : "Untitled",
+          priority: typeof item.priority === "string" ? item.priority.slice(0, 50) : "medium",
+          dueDate: typeof item.dueDate === "string" ? item.dueDate.slice(0, 50) : "",
+          estimateMin: typeof item.estimateMin === "number" ? item.estimateMin : 25,
+          overdue: Boolean(item.overdue),
+        };
+      })
+    : [];
+
+  const habits: HabitItem[] = Array.isArray(ctx.habits)
+    ? ctx.habits.slice(0, 20).map((h) => {
+        const item = (typeof h === "object" && h !== null ? h : {}) as Record<string, unknown>;
+        return {
+          name: typeof item.name === "string" ? item.name.slice(0, 200) : "Unnamed",
+          streak: typeof item.streak === "number" ? item.streak : 0,
+          doneToday: Boolean(item.doneToday),
+        };
+      })
+    : [];
+
+  return {
+    now: typeof ctx.now === "string" ? ctx.now.slice(0, 100) : new Date().toISOString(),
+    tasks,
+    habits,
+    focusMinutesToday: typeof ctx.focusMinutesToday === "number" ? ctx.focusMinutesToday : 0,
+    focusMinutesWeek: typeof ctx.focusMinutesWeek === "number" ? ctx.focusMinutesWeek : 0,
+    bestWindow: typeof ctx.bestWindow === "string" ? ctx.bestWindow.slice(0, 50) : "unknown",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, context } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const messages = sanitizeMessages(body.messages);
+    const context = sanitizeContext(body.context);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI is not configured." }), {
@@ -30,17 +103,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    const contextBlock = `Current time: ${context.now}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
+${context.tasks.map((t) =>
   `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${context.habits.map((h) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${context.focusMinutesToday} minutes logged today, ${context.focusMinutesWeek} this week. Peak window: ${context.bestWindow}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +126,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...messages,
         ],
       }),
     });
