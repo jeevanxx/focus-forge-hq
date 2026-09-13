@@ -1,0 +1,4 @@
+## 2026-09-03 - AI Coach Prompt Injection & Resource Exhaustion Protection
+**Vulnerability:** Unsanitized message arrays and context objects in the AI edge function (`supabase/functions/coach/index.ts`) allowed potential prompt injection attacks (e.g. spoofing `system` or `developer` roles) and resource exhaustion DoS through oversized message strings or massive task/habit arrays.
+**Learning:** External or user-provided chat inputs sent directly into LLM completion API `messages` arrays must strictly enforce role whitelisting and input bounding to prevent system prompt overriding and payload bloating.
+**Prevention:** Always validate and sanitize user chat messages and context objects using strict role whitelists (`user` and `assistant` only), character length limits (e.g. max 1000 characters per message), array length caps (e.g. max 10 messages, max 20 context items), and strong fallback defaults before delegating to AI models.
