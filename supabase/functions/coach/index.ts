@@ -15,13 +15,84 @@ Rules of engagement:
 - Use **bold** for the task the user should start. Keep replies under 90 words.
 - If the user is genuinely clear (no open tasks), tell them to stop manufacturing work and rest.`;
 
+const MAX_MESSAGES = 10;
+const MAX_CONTENT_LENGTH = 1000;
+const MAX_CONTEXT_ITEMS = 20;
+
+function sanitizeMessages(messages: unknown): { role: string; content: string }[] {
+  if (!Array.isArray(messages)) return [];
+  const validRoles = new Set(["user", "assistant"]);
+  const sanitized: { role: string; content: string }[] = [];
+
+  for (const item of messages) {
+    if (!item || typeof item !== "object") continue;
+    const rawRole = String((item as Record<string, unknown>).role || "").toLowerCase().trim();
+    if (!validRoles.has(rawRole)) continue;
+
+    const rawContent = String((item as Record<string, unknown>).content || "").trim();
+    sanitized.push({
+      role: rawRole,
+      content: rawContent.slice(0, MAX_CONTENT_LENGTH),
+    });
+  }
+
+  return sanitized.slice(-MAX_MESSAGES);
+}
+
+function sanitizeContext(context: unknown) {
+  if (!context || typeof context !== "object") {
+    return {
+      now: new Date().toISOString(),
+      tasks: [],
+      habits: [],
+      focusMinutesToday: 0,
+      focusMinutesWeek: 0,
+      bestWindow: "unknown",
+    };
+  }
+
+  const raw = context as Record<string, unknown>;
+
+  const tasks = (Array.isArray(raw.tasks) ? raw.tasks : [])
+    .slice(0, MAX_CONTEXT_ITEMS)
+    .filter((t): t is Record<string, unknown> => Boolean(t) && typeof t === "object")
+    .map((t) => ({
+      title: String(t.title || "").slice(0, 200),
+      priority: String(t.priority || "medium").slice(0, 20),
+      dueDate: String(t.dueDate || "").slice(0, 30),
+      estimateMin: typeof t.estimateMin === "number" && !isNaN(t.estimateMin) ? t.estimateMin : 25,
+      overdue: Boolean(t.overdue),
+    }));
+
+  const habits = (Array.isArray(raw.habits) ? raw.habits : [])
+    .slice(0, MAX_CONTEXT_ITEMS)
+    .filter((h): h is Record<string, unknown> => Boolean(h) && typeof h === "object")
+    .map((h) => ({
+      name: String(h.name || "").slice(0, 200),
+      streak: typeof h.streak === "number" && !isNaN(h.streak) ? Math.max(0, h.streak) : 0,
+      doneToday: Boolean(h.doneToday),
+    }));
+
+  return {
+    now: typeof raw.now === "string" ? raw.now.slice(0, 50) : new Date().toISOString(),
+    tasks,
+    habits,
+    focusMinutesToday: typeof raw.focusMinutesToday === "number" && !isNaN(raw.focusMinutesToday) ? Math.max(0, Number(raw.focusMinutesToday)) : 0,
+    focusMinutesWeek: typeof raw.focusMinutesWeek === "number" && !isNaN(raw.focusMinutesWeek) ? Math.max(0, Number(raw.focusMinutesWeek)) : 0,
+    bestWindow: typeof raw.bestWindow === "string" ? raw.bestWindow.slice(0, 50) : "unknown",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, context } = await req.json();
+    const rawBody = await req.json();
+    const messages = sanitizeMessages(rawBody?.messages);
+    const context = sanitizeContext(rawBody?.context);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI is not configured." }), {
@@ -30,17 +101,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    const contextBlock = `Current time: ${context.now}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
-  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
+${context.tasks.map((t) =>
+  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin}m | ${t.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${context.habits.map((h) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${context.focusMinutesToday} minutes logged today, ${context.focusMinutesWeek} this week. Peak window: ${context.bestWindow}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +124,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...messages,
         ],
       }),
     });
