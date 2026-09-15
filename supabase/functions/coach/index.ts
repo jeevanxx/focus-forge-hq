@@ -1,4 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { sanitizeMessages, sanitizeContext } from "../../../src/lib/coachSanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, context } = await req.json();
+    const rawBody = await req.json();
+    const cleanMessages = sanitizeMessages(rawBody?.messages);
+    const cleanContext = sanitizeContext(rawBody?.context);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI is not configured." }), {
@@ -30,17 +34,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    const contextBlock = `Current time: ${cleanContext.now ?? new Date().toISOString()}
 
 OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
+${(cleanContext.tasks ?? []).map((t) =>
   `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${(cleanContext.habits ?? []).map((h) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${cleanContext.focusMinutesToday ?? 0} minutes logged today, ${cleanContext.focusMinutesWeek ?? 0} this week. Peak window: ${cleanContext.bestWindow ?? "unknown"}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +57,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...cleanMessages,
         ],
       }),
     });
