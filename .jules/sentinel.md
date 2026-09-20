@@ -1,0 +1,4 @@
+## 2025-02-28 - CSS Injection and Tracking Pixel Leak via Chart dynamic style interpolation
+**Vulnerability:** Unsanitized dynamic input (`id`, `key`, `color`) interpolated directly into `<style dangerouslySetInnerHTML=... />` in `ChartStyle` allowed CSS property/rule breakouts and SSRF/tracking pixel leaks via `url()`.
+**Learning:** React components injecting CSS dynamically via raw `<style>` elements must sanitize element IDs, CSS variable keys, and property values (blocking breakout characters `; {} [] "' <> \` and `url()` constructs) while preserving valid modern CSS constructs like `hsl()` and `var()`.
+**Prevention:** Keep sanitization helpers local (unexported) to comply with React Fast Refresh lint rules, and validate all dynamic CSS variable values against restrictive character whitelists.
