@@ -8,6 +8,7 @@ import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { useFocus } from "@/context/FocusContext";
 import { getBestFocusWindow, getWeeklyFocus, getWeeklyFocusTotal, getNextBestAction } from "@/lib/analytics";
+import { sanitizeContext, sanitizeMessages } from "@/lib/coachSanitizer";
 import { format } from "date-fns";
 
 interface Msg {
@@ -81,13 +82,14 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
   const ask = async (text: string, history: Msg[]) => {
     setThinking(true);
     try {
+      const rawMessages = [
+        ...history.map((m) => ({ role: m.role, content: m.text })),
+        { role: "user", content: text },
+      ];
       const { data, error } = await supabase.functions.invoke("coach", {
         body: {
-          context: buildContext(),
-          messages: [
-            ...history.map((m) => ({ role: m.role, content: m.text })),
-            { role: "user", content: text },
-          ],
+          context: sanitizeContext(buildContext()),
+          messages: sanitizeMessages(rawMessages),
         },
       });
       if (error) throw error;
