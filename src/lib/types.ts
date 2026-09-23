@@ -22,6 +22,7 @@ export interface Habit {
   target: number; // per week
   history: boolean[]; // last 7 days, oldest first
   color: HabitColor;
+  freezeActive?: boolean; // this week's streak freeze is currently holding the streak
 }
 
 export interface FocusSession {
