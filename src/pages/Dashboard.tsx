@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
+import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
@@ -10,7 +10,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { useFocus } from "@/context/FocusContext";
-import { getWeeklyFocus } from "@/lib/analytics";
+import { getWeeklyFocus, getCoachInsight, getDelayedHighPriority } from "@/lib/analytics";
 import { useProfile } from "@/hooks/useProfile";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
@@ -54,6 +54,17 @@ const Dashboard = () => {
   const focusGoal = profile?.focusGoalMin ?? 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+  const insight = getCoachInsight(tasks, sessions, today);
+
+  // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
+  const overdueHigh = getDelayedHighPriority(tasks, today).count;
+  const reminderMsg =
+    !profile?.reminderEnabled ? null
+    : overdueHigh > 0
+      ? `Reminder: ${overdueHigh} high-priority ${overdueHigh === 1 ? "task is" : "tasks are"} overdue. Clear the oldest one first.`
+      : today.getHours() >= 15 && todayMin < focusGoal
+        ? `Reminder: you're at ${todayMin} of ${focusGoal} focus minutes. One session still gets you there.`
+        : null;
 
   // Active task = first incomplete, sorted by priority high → med → low
   const priorityOrder = { high: 0, med: 1, low: 2 };
