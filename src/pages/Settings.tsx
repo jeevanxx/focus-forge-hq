@@ -1,12 +1,16 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings as SettingsIcon, Target, User, KeyRound } from "lucide-react";
+import { LogOut, Settings as SettingsIcon, Target, User, KeyRound, BellRing, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useTasks } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 const Section = ({ icon: Icon, title, description, children }: {
@@ -29,6 +33,9 @@ const Section = ({ icon: Icon, title, description, children }: {
 const Settings = () => {
   const { user, signOut } = useAuth();
   const { profile, isLoading, updateProfile } = useProfile();
+  const { tasks } = useTasks();
+  const { habits } = useHabits();
+  const { sessions } = useFocusSessions();
   const { toast } = useToast();
   const navigate = useNavigate();
 
