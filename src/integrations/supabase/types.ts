@@ -127,6 +127,7 @@ export type Database = {
           display_name: string | null
           focus_goal_min: number
           id: string
+          reminder_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -135,6 +136,7 @@ export type Database = {
           display_name?: string | null
           focus_goal_min?: number
           id: string
+          reminder_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -143,6 +145,7 @@ export type Database = {
           display_name?: string | null
           focus_goal_min?: number
           id?: string
+          reminder_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
