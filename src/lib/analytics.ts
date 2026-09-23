@@ -276,3 +276,55 @@ export const getNextBestAction = (
     suggestedMinutes: 0,
   };
 };
+
+// ---------- 8. Coach insight (dashboard card) ----------
+
+export interface CoachInsight {
+  message: string;
+  emphasis: string; // highlighted phrase inside the message
+}
+
+export const getCoachInsight = (
+  tasks: Task[],
+  sessions: FocusSession[],
+  now: Date = new Date()
+): CoachInsight => {
+  const delayed = getDelayedHighPriority(tasks, now);
+  if (delayed.count > 0) {
+    const t = delayed.top[0];
+    return {
+      message: `You have ${delayed.count} overdue high-priority ${delayed.count === 1 ? "task" : "tasks"}. "${t.title}" is the oldest — start it before anything new.`,
+      emphasis: `${delayed.count} overdue`,
+    };
+  }
+
+  const todayKey = format(now, "yyyy-MM-dd");
+  const todayMin = getWeeklyFocus(sessions, now).find((d) => d.date === todayKey)?.minutes ?? 0;
+  if (todayMin === 0 && now.getHours() >= 12) {
+    return {
+      message: "It's past midday and you haven't logged any focus time yet. One 25-minute session changes the whole day.",
+      emphasis: "no focus time yet",
+    };
+  }
+
+  const best = getBestFocusWindow(sessions);
+  if (best && sessions.length >= 5) {
+    return {
+      message: `Your data says you focus best between ${best.label}. Protect that window — schedule your hardest task there.`,
+      emphasis: best.label,
+    };
+  }
+
+  const completion = getCompletionRate(tasks.filter((t) => isToday(t.dueDate, now) || t.done));
+  if (completion >= 80 && tasks.length > 0) {
+    return {
+      message: `Strong pace — ${completion}% completion. Bank the momentum: line up tomorrow's first task now.`,
+      emphasis: `${completion}% completion`,
+    };
+  }
+
+  return {
+    message: "Small wins compound. Pick one task, run one focused session, and let the streak build itself.",
+    emphasis: "Small wins compound",
+  };
+};

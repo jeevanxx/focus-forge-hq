@@ -6,6 +6,7 @@ export interface Profile {
   id: string;
   displayName: string;
   focusGoalMin: number;
+  reminderEnabled: boolean;
 }
 
 export const profileKey = (userId?: string) => ["profile", userId] as const;
@@ -30,16 +31,18 @@ export const useProfile = () => {
         id: data.id,
         displayName: data.display_name ?? "",
         focusGoalMin: data.focus_goal_min ?? 180,
+        reminderEnabled: data.reminder_enabled ?? false,
       };
     },
   });
 
   const updateProfile = useMutation({
-    mutationFn: async (input: { displayName?: string; focusGoalMin?: number }) => {
+    mutationFn: async (input: { displayName?: string; focusGoalMin?: number; reminderEnabled?: boolean }) => {
       if (!user) throw new Error("Not signed in");
-      const patch: { display_name?: string; focus_goal_min?: number } = {};
+      const patch: { display_name?: string; focus_goal_min?: number; reminder_enabled?: boolean } = {};
       if (input.displayName !== undefined) patch.display_name = input.displayName;
       if (input.focusGoalMin !== undefined) patch.focus_goal_min = input.focusGoalMin;
+      if (input.reminderEnabled !== undefined) patch.reminder_enabled = input.reminderEnabled;
       const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
       if (error) throw error;
     },

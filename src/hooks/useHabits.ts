@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addDays, format, subDays } from "date-fns";
+import { addDays, format, subDays, getISOWeek, getISOWeekYear } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import type { Habit, HabitColor } from "@/lib/types";
@@ -8,16 +8,37 @@ const HISTORY_DAYS = 7;
 const LOOKBACK_DAYS = 180;
 
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
+const weekKey = (d: Date) => `${getISOWeekYear(d)}-W${getISOWeek(d)}`;
 
-const computeStreak = (dates: Set<string>, today: Date): number => {
-  // A streak stays alive if today is done, or if today isn't done yet but yesterday was.
+// One "freeze" per week: a single missed day in a calendar week (Mon–Sun)
+// doesn't break the streak. Derived purely from entry history.
+const computeStreak = (
+  dates: Set<string>,
+  today: Date
+): { streak: number; freezeActive: boolean } => {
+  // A streak stays alive if today is done, or if today isn't done yet but yesterday was (or frozen).
   let cursor = dates.has(dayKey(today)) ? today : subDays(today, 1);
   let streak = 0;
-  while (dates.has(dayKey(cursor))) {
-    streak += 1;
-    cursor = subDays(cursor, 1);
+  const frozenWeeks = new Set<string>();
+  let freezeActive = false;
+
+  while (true) {
+    if (dates.has(dayKey(cursor))) {
+      streak += 1;
+      cursor = subDays(cursor, 1);
+      continue;
+    }
+    const wk = weekKey(cursor);
+    if (!frozenWeeks.has(wk)) {
+      // Consume this week's freeze: skip one missed day.
+      frozenWeeks.add(wk);
+      if (wk === weekKey(today) || wk === weekKey(subDays(today, 1))) freezeActive = true;
+      cursor = subDays(cursor, 1);
+      continue;
+    }
+    break;
   }
-  return streak;
+  return { streak, freezeActive };
 };
 
 export const habitsKey = (userId?: string) => ["habits", userId] as const;
@@ -59,6 +80,7 @@ export const useHabits = () => {
 
       return (habitsRes.data ?? []).map((h) => {
         const dates = byHabit.get(h.id) ?? new Set<string>();
+        const { streak, freezeActive } = computeStreak(dates, today);
         return {
           id: h.id,
           name: h.name,
@@ -66,7 +88,8 @@ export const useHabits = () => {
           color: h.color as HabitColor,
           target: h.target,
           history: historyDays.map((d) => dates.has(d)),
-          streak: computeStreak(dates, today),
+          streak,
+          freezeActive,
         };
       });
     },

@@ -1,12 +1,16 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings as SettingsIcon, Target, User, KeyRound } from "lucide-react";
+import { LogOut, Settings as SettingsIcon, Target, User, KeyRound, BellRing, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useTasks } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 const Section = ({ icon: Icon, title, description, children }: {
@@ -29,6 +33,9 @@ const Section = ({ icon: Icon, title, description, children }: {
 const Settings = () => {
   const { user, signOut } = useAuth();
   const { profile, isLoading, updateProfile } = useProfile();
+  const { tasks } = useTasks();
+  const { habits } = useHabits();
+  const { sessions } = useFocusSessions();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -85,6 +92,33 @@ const Settings = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth", { replace: true });
+  };
+
+  const toggleReminder = async (enabled: boolean) => {
+    try {
+      await updateProfile.mutateAsync({ reminderEnabled: enabled });
+      toast({ title: enabled ? "Reminders on" : "Reminders off" });
+    } catch (err) {
+      toast({ title: "Could not update reminders", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const exportData = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      profile,
+      tasks,
+      habits,
+      focusSessions: sessions,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `focus-forge-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Export downloaded" });
   };
 
   return (
@@ -168,6 +202,24 @@ const Settings = () => {
               </Button>
             </form>
           )}
+        </Section>
+
+        <Section icon={BellRing} title="Reminders" description="Gentle in-app nudges when high-priority work slips or your focus goal is unmet.">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="reminder-toggle" className="text-sm font-medium">Daily reminder nudges</Label>
+            <Switch
+              id="reminder-toggle"
+              checked={profile?.reminderEnabled ?? false}
+              onCheckedChange={toggleReminder}
+              disabled={isLoading}
+            />
+          </div>
+        </Section>
+
+        <Section icon={Download} title="Your data" description="Download everything Focus Forge stores about you.">
+          <Button onClick={exportData} variant="outline" className="font-semibold">
+            <Download className="h-4 w-4 mr-2" /> Download my data
+          </Button>
         </Section>
 
         <Section icon={LogOut} title="Session" description="Sign out of Focus Forge on this device.">

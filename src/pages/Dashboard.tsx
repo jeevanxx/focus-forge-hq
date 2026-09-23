@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
+import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
@@ -10,7 +10,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
 import { useFocus } from "@/context/FocusContext";
-import { getWeeklyFocus } from "@/lib/analytics";
+import { getWeeklyFocus, getCoachInsight, getDelayedHighPriority } from "@/lib/analytics";
 import { useProfile } from "@/hooks/useProfile";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
@@ -54,6 +54,17 @@ const Dashboard = () => {
   const focusGoal = profile?.focusGoalMin ?? 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+  const insight = getCoachInsight(tasks, sessions, today);
+
+  // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
+  const overdueHigh = getDelayedHighPriority(tasks, today).count;
+  const reminderMsg =
+    !profile?.reminderEnabled ? null
+    : overdueHigh > 0
+      ? `Reminder: ${overdueHigh} high-priority ${overdueHigh === 1 ? "task is" : "tasks are"} overdue. Clear the oldest one first.`
+      : today.getHours() >= 15 && todayMin < focusGoal
+        ? `Reminder: you're at ${todayMin} of ${focusGoal} focus minutes. One session still gets you there.`
+        : null;
 
   // Active task = first incomplete, sorted by priority high → med → low
   const priorityOrder = { high: 0, med: 1, low: 2 };
@@ -222,6 +233,22 @@ const Dashboard = () => {
 
       <OnboardingChecklist />
 
+      {/* ============ REMINDER NUDGE ============ */}
+      {reminderMsg && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.19, 1, 0.22, 1] }}
+          className="mb-10 lg:mb-14 flex items-center gap-3 p-4 rounded-2xl border border-accent/40 bg-accent/10"
+        >
+          <div className="h-9 w-9 shrink-0 rounded-xl bg-accent/20 border border-accent/40 grid place-items-center">
+            <BellRing className="h-4 w-4 text-accent" />
+          </div>
+          <p className="text-sm font-medium text-foreground/90">{reminderMsg}</p>
+        </motion.div>
+      )}
+
+
 
       {/* ============ NOW WORKING ON ============ */}
       {activeTask && (
@@ -386,7 +413,9 @@ const Dashboard = () => {
                 </div>
               </div>
               <p className="text-[15px] leading-relaxed text-foreground/95 font-medium">
-                You ship <span className="text-ember font-bold">38% more</span> on days you start with deep work before 10am. Protect this morning.
+                {insight.message.split(insight.emphasis)[0]}
+                <span className="text-ember font-bold">{insight.emphasis}</span>
+                {insight.message.split(insight.emphasis)[1]}
               </p>
               <button className="press mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:gap-2 transition-all">
                 Open coach <ArrowUpRight className="h-3.5 w-3.5" />
