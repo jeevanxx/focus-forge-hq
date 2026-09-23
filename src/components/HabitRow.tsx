@@ -1,6 +1,6 @@
 import { Habit } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, Flame, Pencil, Trash2 } from "lucide-react";
+import { Check, Flame, Pencil, Snowflake, Trash2 } from "lucide-react";
 
 const colorMap = {
   ember: "from-primary to-primary-glow shadow-ember",
@@ -39,6 +39,14 @@ export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
             <span className="opacity-50"> · </span>
             <span className="text-foreground/80 font-semibold">{completed}/{habit.target}</span> this week
           </span>
+          {habit.freezeActive && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[hsl(190_80%_65%)] bg-[hsl(190_80%_55%/0.12)] border border-[hsl(190_80%_55%/0.3)] rounded-md px-1.5 py-0.5"
+              title="This week's streak freeze is covering one missed day"
+            >
+              <Snowflake className="h-2.5 w-2.5" /> Freeze
+            </span>
+          )}
         </div>
         <div className="mt-2 h-1 rounded-full bg-muted/60 overflow-hidden max-w-[200px]">
           <div
