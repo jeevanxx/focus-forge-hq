@@ -94,6 +94,33 @@ const Settings = () => {
     navigate("/auth", { replace: true });
   };
 
+  const toggleReminder = async (enabled: boolean) => {
+    try {
+      await updateProfile.mutateAsync({ reminderEnabled: enabled });
+      toast({ title: enabled ? "Reminders on" : "Reminders off" });
+    } catch (err) {
+      toast({ title: "Could not update reminders", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const exportData = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      profile,
+      tasks,
+      habits,
+      focusSessions: sessions,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `focus-forge-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Export downloaded" });
+  };
+
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[760px] mx-auto animate-fade-in">
       <div className="mb-8">
@@ -175,6 +202,24 @@ const Settings = () => {
               </Button>
             </form>
           )}
+        </Section>
+
+        <Section icon={BellRing} title="Reminders" description="Gentle in-app nudges when high-priority work slips or your focus goal is unmet.">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="reminder-toggle" className="text-sm font-medium">Daily reminder nudges</Label>
+            <Switch
+              id="reminder-toggle"
+              checked={profile?.reminderEnabled ?? false}
+              onCheckedChange={toggleReminder}
+              disabled={isLoading}
+            />
+          </div>
+        </Section>
+
+        <Section icon={Download} title="Your data" description="Download everything Focus Forge stores about you.">
+          <Button onClick={exportData} variant="outline" className="font-semibold">
+            <Download className="h-4 w-4 mr-2" /> Download my data
+          </Button>
         </Section>
 
         <Section icon={LogOut} title="Session" description="Sign out of Focus Forge on this device.">
