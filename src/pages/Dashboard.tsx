@@ -233,6 +233,22 @@ const Dashboard = () => {
 
       <OnboardingChecklist />
 
+      {/* ============ REMINDER NUDGE ============ */}
+      {reminderMsg && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.19, 1, 0.22, 1] }}
+          className="mb-10 lg:mb-14 flex items-center gap-3 p-4 rounded-2xl border border-accent/40 bg-accent/10"
+        >
+          <div className="h-9 w-9 shrink-0 rounded-xl bg-accent/20 border border-accent/40 grid place-items-center">
+            <BellRing className="h-4 w-4 text-accent" />
+          </div>
+          <p className="text-sm font-medium text-foreground/90">{reminderMsg}</p>
+        </motion.div>
+      )}
+
+
 
       {/* ============ NOW WORKING ON ============ */}
       {activeTask && (
@@ -397,7 +413,9 @@ const Dashboard = () => {
                 </div>
               </div>
               <p className="text-[15px] leading-relaxed text-foreground/95 font-medium">
-                You ship <span className="text-ember font-bold">38% more</span> on days you start with deep work before 10am. Protect this morning.
+                {insight.message.split(insight.emphasis)[0]}
+                <span className="text-ember font-bold">{insight.emphasis}</span>
+                {insight.message.split(insight.emphasis)[1]}
               </p>
               <button className="press mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:gap-2 transition-all">
                 Open coach <ArrowUpRight className="h-3.5 w-3.5" />
