@@ -80,6 +80,7 @@ export const useHabits = () => {
 
       return (habitsRes.data ?? []).map((h) => {
         const dates = byHabit.get(h.id) ?? new Set<string>();
+        const { streak, freezeActive } = computeStreak(dates, today);
         return {
           id: h.id,
           name: h.name,
@@ -87,7 +88,8 @@ export const useHabits = () => {
           color: h.color as HabitColor,
           target: h.target,
           history: historyDays.map((d) => dates.has(d)),
-          streak: computeStreak(dates, today),
+          streak,
+          freezeActive,
         };
       });
     },
