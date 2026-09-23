@@ -53,7 +53,12 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(messages ?? []),
+          ...(Array.isArray(messages) ? messages : [])
+            .filter((m: any) =>
+              m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
+            )
+            .slice(-30)
+            .map((m: any) => ({ role: m.role, content: m.content.slice(0, 4000) })),
         ],
       }),
     });
