@@ -78,19 +78,39 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Calculates focus minutes for each day of the current week (Monday through Sunday).
+ * Optimized to O(N) single-pass hash map accumulation while preserving local timezone
+ * date formatting via parseISO.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+
+  // Pre-calculate target date keys for Monday-Sunday and initialize lookup map
+  const totalsMap: Record<string, number> = {};
+  const weekDays = WEEK_LABELS.map((day, i) => {
+    const dateKey = format(addDays(weekStart, i), "yyyy-MM-dd");
+    totalsMap[dateKey] = 0;
+    return { day, date: dateKey };
   });
+
+  // Single O(N) pass to aggregate session minutes into totals map
+  for (let i = 0; i < sessions.length; i++) {
+    const sessionDateKey = format(parseISO(sessions[i].date), "yyyy-MM-dd");
+    if (sessionDateKey in totalsMap) {
+      totalsMap[sessionDateKey] += sessions[i].durationMin;
+    }
+  }
+
+  // Build result array from map lookups
+  return weekDays.map(({ day, date }) => ({
+    day,
+    date,
+    minutes: totalsMap[date],
+  }));
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
