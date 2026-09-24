@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, X, Send, Play, AlertTriangle, Target } from "lucide-react";
+import { Sparkles, X, Send, Play, AlertTriangle, Target, Trash2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTasks } from "@/hooks/useTasks";
@@ -40,7 +41,9 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
   const { habits } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -80,20 +83,28 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
-  const ask = async (text: string, history: Msg[]) => {
+  const save = async (role: "user" | "assistant", content: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("coach_messages").insert({ user_id: user.id, role, content });
+    if (error) console.error("Failed to save coach message", error);
+  };
+
+  const ask = async (text: string, history: Msg[], persistPrompt = true) => {
     setThinking(true);
+    if (persistPrompt) save("user", text);
     try {
       const { data, error } = await supabase.functions.invoke("coach", {
         body: {
           context: buildContext(),
           messages: [
-            ...history.map((m) => ({ role: m.role, content: m.text })),
+            ...history.filter((m) => m.tone !== "warning").map((m) => ({ role: m.role, content: m.text })),
             { role: "user", content: text },
           ],
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      save("assistant", data.reply);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "assistant", text: data.reply, tone: "directive" },
@@ -113,15 +124,41 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
     }
   };
 
-  // Kick off an opening directive the first time the panel opens.
+  // Load saved history the first time the panel opens; greet only if there is none.
   useEffect(() => {
-    if (!open || messages.length > 0 || thinking) return;
-    ask("Greet me briefly and mention one useful thing about my tasks today. Keep it short and friendly.", []);
+    if (!open || loaded || !user) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("coach_messages")
+        .select("id, role, content")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(60);
+      if (error) console.error("Failed to load coach history", error);
+      const past: Msg[] = (data ?? []).reverse().map((r) => ({
+        id: r.id,
+        role: r.role as Msg["role"],
+        text: r.content,
+        tone: r.role === "assistant" ? "directive" : undefined,
+      }));
+      setMessages(past);
+      setLoaded(true);
+      if (past.length === 0) {
+        ask("Greet me briefly and mention one useful thing about my tasks today. Keep it short and friendly.", [], false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, user, loaded]);
+
+  const clearHistory = async () => {
+    if (!user || thinking) return;
+    const { error } = await supabase.from("coach_messages").delete().eq("user_id", user.id);
+    if (error) { console.error(error); return; }
+    setMessages([]);
+  };
 
   const send = (text: string) => {
-    if (!text.trim() || thinking) return;
+    if (!text.trim() || thinking || !loaded) return;
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text };
     const history = messages;
     setMessages((m) => [...m, userMsg]);
@@ -181,9 +218,14 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
                   </div>
                 </div>
               </div>
-              <button onClick={onClose} aria-label="Close coach" className="press h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary transition-colors">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={clearHistory} aria-label="Clear chat history" title="Clear chat history" className="press h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button onClick={onClose} aria-label="Close coach" className="press h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div ref={scrollRef} className="relative flex-1 overflow-y-auto scrollbar-thin px-5 py-5 space-y-4">

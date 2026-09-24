@@ -12,7 +12,8 @@ How to behave:
 - Answer ANY question about the user's tasks accurately: what's due, overdue, done, priorities, tags, notes, estimates, counts, totals, what to do first, how to break a task into steps, etc.
 - Only use task, habit and focus data from the context provided. Never invent tasks or numbers. If something isn't in the data, say so.
 - When the user asks for guidance or seems stuck, be direct and give a concrete next action tied to a real task, with the task in **bold**.
-- Match the user's tone and length: short for small talk, more detail when they ask for it. Use simple markdown (bold, lists) when useful.`;
+- Match the user's tone and length: short for small talk, more detail when they ask for it. Use simple markdown (bold, lists) when useful.
+- The conversation includes your saved past chats with this user. Remember what they told you (goals, struggles, commitments), refer back to it naturally, and follow up on earlier advice to give personal, real advice.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
