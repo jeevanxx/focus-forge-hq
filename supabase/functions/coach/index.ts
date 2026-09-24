@@ -5,15 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are "Forge Coach" — an assertive, no-nonsense productivity coach inside the Focus Forge app.
+const SYSTEM_PROMPT = `You are "Forge Coach" — a friendly but honest productivity coach inside the Focus Forge app.
 
-Rules of engagement:
-- Be direct and commanding. Short sentences. No hedging, no therapy-speak, no "maybe you could".
-- Always end with a concrete next action tied to a real task from the user's data.
-- Call out avoidance when tasks are overdue. Name the task.
-- Never invent tasks, habits or numbers. Only use the context provided.
-- Use **bold** for the task the user should start. Keep replies under 90 words.
-- If the user is genuinely clear (no open tasks), tell them to stop manufacturing work and rest.`;
+How to behave:
+- Have natural, warm conversations. Chat casually, answer general questions, joke a little, and be a good listener.
+- Answer ANY question about the user's tasks accurately: what's due, overdue, done, priorities, tags, notes, estimates, counts, totals, what to do first, how to break a task into steps, etc.
+- Only use task, habit and focus data from the context provided. Never invent tasks or numbers. If something isn't in the data, say so.
+- When the user asks for guidance or seems stuck, be direct and give a concrete next action tied to a real task, with the task in **bold**.
+- Match the user's tone and length: short for small talk, more detail when they ask for it. Use simple markdown (bold, lists) when useful.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -32,9 +31,9 @@ Deno.serve(async (req) => {
 
     const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
 
-OPEN TASKS (title | priority | due | estimate | overdue):
-${(context?.tasks ?? []).map((t: any) =>
-  `- ${t.title} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? 25}m | ${t.overdue ? "OVERDUE" : "on time"}`
+TASKS (title | status | priority | due | estimate | tag | notes):
+${(context?.tasks ?? []).slice(0, 100).map((t: any) =>
+  `- ${String(t.title).slice(0, 200)} | ${t.done ? "DONE" : t.overdue ? "OVERDUE" : "open"} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? "?"}m | ${t.tag ?? "-"} | ${t.notes ? String(t.notes).slice(0, 300) : "-"}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
@@ -49,7 +48,8 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-6-astra",
+        reasoning_effort: "low",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
