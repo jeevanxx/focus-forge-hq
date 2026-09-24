@@ -54,14 +54,16 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
     return {
       now: now.toISOString(),
       tasks: tasks
-        .filter((t) => !t.done)
-        .slice(0, 20)
+        .slice(0, 100)
         .map((t) => ({
           title: t.title,
+          done: t.done,
           priority: t.priority,
           dueDate: t.dueDate,
           estimateMin: t.estimateMin,
-          overdue: t.dueDate < todayKey,
+          tag: t.tag,
+          notes: t.notes,
+          overdue: !t.done && t.dueDate < todayKey,
         })),
       habits: habits.map((h) => ({
         name: h.name,
@@ -114,7 +116,7 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
   // Kick off an opening directive the first time the panel opens.
   useEffect(() => {
     if (!open || messages.length > 0 || thinking) return;
-    ask("Open with a short directive for right now, based on my data.", []);
+    ask("Greet me briefly and mention one useful thing about my tasks today. Keep it short and friendly.", []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -262,7 +264,7 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Push back, or ask for orders..."
+                  placeholder="Ask about your tasks, or just chat..."
                   className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
                 />
                 <button
