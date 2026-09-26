@@ -6,6 +6,20 @@ import { cn } from "@/lib/utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
+// Sanitizes chart ID to prevent CSS attribute selector breakout
+const sanitizeId = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, "");
+
+// Sanitizes CSS variable key names
+const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_-]/g, "");
+
+// Sanitizes CSS color values to prevent CSS breakout or url() SSRF/tracking
+const sanitizeColor = (color: string) => {
+  if (/\burl\s*\(/i.test(color)) {
+    return "";
+  }
+  return color.replace(/[^a-zA-Z0-9#(),.% \t/-]/g, "").trim();
+};
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
@@ -37,7 +51,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const sanitizedId = id ? sanitizeId(id) : uniqueId.replace(/:/g, "");
+  const chartId = `chart-${sanitizedId}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -59,6 +74,7 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const safeId = sanitizeId(id);
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
@@ -71,12 +87,15 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = sanitizeKey(key);
+    const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const safeColor = rawColor ? sanitizeColor(rawColor) : "";
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
