@@ -1,0 +1,4 @@
+## 2026-09-28 - Dynamic CSS Variable Sanitization in Chart Components
+**Vulnerability:** Unsanitized dynamic props (`id`, config keys, and color strings) in `ChartContainer` / `ChartStyle` were interpolated directly into a `<style>` tag via `dangerouslySetInnerHTML`, allowing potential CSS/HTML injection breakouts and unauthorized tracking pixel/SSRF exfiltration requests via `url()`.
+**Learning:** React UI components that dynamically generate CSS custom properties in style elements need strict character whitelisting for IDs/keys and character stripping/pattern blocking for color strings.
+**Prevention:** Always sanitize IDs and variable keys with `/[^a-zA-Z0-9_-]/g`, block `url()` constructs, and strip breakout characters (`; { } [ ] " ' < > \`) before rendering raw CSS strings in style blocks.
