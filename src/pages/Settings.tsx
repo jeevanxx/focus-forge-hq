@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { pushSupported, getPushEnabled, enablePush, disablePush } from "@/lib/push";
 
 const Section = ({ icon: Icon, title, description, children }: {
   icon: any; title: string; description: string; children: React.ReactNode;
@@ -100,6 +101,23 @@ const Settings = () => {
       toast({ title: enabled ? "Reminders on" : "Reminders off" });
     } catch (err) {
       toast({ title: "Could not update reminders", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => { getPushEnabled().then(setPushOn).catch(() => {}); }, []);
+  const togglePush = async (on: boolean) => {
+    if (!user) return;
+    setPushBusy(true);
+    try {
+      if (on) await enablePush(user.id); else await disablePush();
+      setPushOn(on);
+      toast({ title: on ? "Phone notifications on" : "Phone notifications off" });
+    } catch (err) {
+      toast({ title: "Could not change notifications", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setPushBusy(false);
     }
   };
 
@@ -204,15 +222,29 @@ const Settings = () => {
           )}
         </Section>
 
-        <Section icon={BellRing} title="Reminders" description="Gentle in-app nudges when high-priority work slips or your focus goal is unmet.">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="reminder-toggle" className="text-sm font-medium">Daily reminder nudges</Label>
-            <Switch
-              id="reminder-toggle"
-              checked={profile?.reminderEnabled ?? false}
-              onCheckedChange={toggleReminder}
-              disabled={isLoading}
-            />
+        <Section icon={BellRing} title="Reminders" description="Gentle nudges when high-priority work slips or your focus goal is unmet.">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="reminder-toggle" className="text-sm font-medium">Daily reminder nudges</Label>
+              <Switch
+                id="reminder-toggle"
+                checked={profile?.reminderEnabled ?? false}
+                onCheckedChange={toggleReminder}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="push-toggle" className="text-sm font-medium">Phone notifications</Label>
+                <p className="text-[11px] text-muted-foreground">Alerts on this device when a task becomes overdue, even with the app closed.</p>
+              </div>
+              <Switch
+                id="push-toggle"
+                checked={pushOn}
+                onCheckedChange={togglePush}
+                disabled={pushBusy || !pushSupported()}
+              />
+            </div>
           </div>
         </Section>
 
