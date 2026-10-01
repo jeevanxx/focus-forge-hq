@@ -92,7 +92,6 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      save("assistant", data.reply);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "assistant", text: data.reply, tone: "directive" },
