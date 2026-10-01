@@ -1,4 +1,4 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,13 +21,38 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, context } = await req.json();
+    const json = (b: unknown, status = 200) =>
+      new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData } = await db.auth.getUser(authHeader.replace("Bearer ", ""));
+    const user = userData?.user;
+    if (!user) return json({ error: "Please sign in." }, 401);
+
+    const body = await req.json();
+    const context = body?.context;
+    const message = typeof body?.message === "string" ? body.message.trim().slice(0, 4000) : "";
+    const persist = body?.persist !== false;
+    if (!message) return json({ error: "Message is required." }, 400);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI is not configured." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!LOVABLE_API_KEY) return json({ error: "AI is not configured." }, 500);
+
+    // History comes only from the user's own saved messages, never from the request.
+    const { data: past } = await db
+      .from("coach_messages")
+      .select("role, content")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const messages = [
+      ...(past ?? []).reverse().map((m) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+      { role: "user", content: message },
+    ];
+    if (persist) {
+      await db.from("coach_messages").insert({ user_id: user.id, role: "user", content: message });
     }
 
     const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
@@ -54,12 +79,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(Array.isArray(messages) ? messages : [])
-            .filter((m: any) =>
-              m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
-            )
-            .slice(-30)
-            .map((m: any) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+          ...messages,
         ],
       }),
     });
@@ -87,6 +107,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
 
     const data = await response.json();
     const reply = data?.choices?.[0]?.message?.content ?? "Pick your top task and start. 25 minutes.";
+    await db.from("coach_messages").insert({ user_id: user.id, role: "assistant", content: reply });
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

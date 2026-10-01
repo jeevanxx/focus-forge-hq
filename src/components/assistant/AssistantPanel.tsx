@@ -83,28 +83,15 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
-  const save = async (role: "user" | "assistant", content: string) => {
-    if (!user) return;
-    const { error } = await supabase.from("coach_messages").insert({ user_id: user.id, role, content });
-    if (error) console.error("Failed to save coach message", error);
-  };
-
-  const ask = async (text: string, history: Msg[], persistPrompt = true) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const ask = async (text: string, _history: Msg[], persistPrompt = true) => {
     setThinking(true);
-    if (persistPrompt) save("user", text);
     try {
       const { data, error } = await supabase.functions.invoke("coach", {
-        body: {
-          context: buildContext(),
-          messages: [
-            ...history.filter((m) => m.tone !== "warning").map((m) => ({ role: m.role, content: m.text })),
-            { role: "user", content: text },
-          ],
-        },
+        body: { context: buildContext(), message: text, persist: persistPrompt },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      save("assistant", data.reply);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "assistant", text: data.reply, tone: "directive" },
