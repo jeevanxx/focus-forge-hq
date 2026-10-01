@@ -9,6 +9,25 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+    const url = Deno.env.get("SUPABASE_URL")!;
+
+    let authorized = false;
+    if (serviceRoleKey && token === serviceRoleKey) {
+      authorized = true;
+    } else if (url) {
+      const dbAuth = createClient(url, anonKey || serviceRoleKey!);
+      const { data: userData } = await dbAuth.auth.getUser(token);
+      if (userData?.user) authorized = true;
+    }
+
+    if (!authorized) return json({ error: "Unauthorized" }, 401);
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
@@ -54,10 +73,11 @@ Deno.serve(async (req) => {
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
-        } catch (e: any) {
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
+        } catch (e: unknown) {
+          const err = e as { statusCode?: number; body?: unknown };
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
-          } else console.error("push failed", e?.statusCode, e?.body);
+          } else console.error("push failed", err?.statusCode, err?.body);
         }
       }
       await db.from("push_notified").upsert(mine.map((t) => ({ task_id: t.id, notified_on: today })));
