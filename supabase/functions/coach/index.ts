@@ -79,12 +79,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
-          ...(Array.isArray(messages) ? messages : [])
-            .filter((m: any) =>
-              m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
-            )
-            .slice(-30)
-            .map((m: any) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+          ...messages,
         ],
       }),
     });
@@ -112,6 +107,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
 
     const data = await response.json();
     const reply = data?.choices?.[0]?.message?.content ?? "Pick your top task and start. 25 minutes.";
+    await db.from("coach_messages").insert({ user_id: user.id, role: "assistant", content: reply });
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
