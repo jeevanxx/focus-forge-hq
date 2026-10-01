@@ -174,6 +174,56 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notified: {
+        Row: {
+          notified_on: string
+          task_id: string
+        }
+        Insert: {
+          notified_on: string
+          task_id: string
+        }
+        Update: {
+          notified_on?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notified_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null
