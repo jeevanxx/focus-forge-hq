@@ -8,6 +8,13 @@
       "when": 1790227318807,
       "tag": "0000_coach_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790841926439,
+      "tag": "0001_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }
