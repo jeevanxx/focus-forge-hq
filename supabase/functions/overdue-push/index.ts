@@ -9,6 +9,24 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    let isAuthorized = Boolean(serviceRoleKey && token === serviceRoleKey);
+    if (!isAuthorized && token) {
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey;
+      if (anonKey) {
+        const authClient = createClient(Deno.env.get("SUPABASE_URL")!, anonKey);
+        const { data: userData } = await authClient.auth.getUser(token);
+        if (userData?.user) isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
@@ -54,7 +72,8 @@ Deno.serve(async (req) => {
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
-        } catch (e: any) {
+        } catch (err) {
+          const e = err as { statusCode?: number; body?: unknown };
           if (e?.statusCode === 404 || e?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
           } else console.error("push failed", e?.statusCode, e?.body);
