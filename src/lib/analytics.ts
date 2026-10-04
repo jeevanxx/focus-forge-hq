@@ -78,19 +78,41 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+// Bolt Optimization: Pre-calculate week date keys and map sessions in a single pass O(N)
+// instead of nested O(7N) array filtering and repeated ISO date parsing.
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-calculate date keys for the 7 days of the current week
+  const daysInfo = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, dateKey };
   });
+
+  const dayMinutesMap = new Map<string, number>();
+  for (const { dateKey } of daysInfo) {
+    dayMinutesMap.set(dateKey, 0);
+  }
+
+  // Single-pass O(N) iteration over sessions
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const current = dayMinutesMap.get(dateKey);
+    if (current !== undefined) {
+      dayMinutesMap.set(dateKey, current + s.durationMin);
+    }
+  }
+
+  return daysInfo.map(({ day, dateKey }) => ({
+    day,
+    date: dateKey,
+    minutes: dayMinutesMap.get(dateKey) || 0,
+  }));
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
