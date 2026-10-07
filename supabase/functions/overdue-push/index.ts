@@ -6,9 +6,32 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const json = (b: unknown, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    // Validate authorization header against service role key or user JWT token
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+
+    let authorized = false;
+    if (token && serviceRoleKey && token === serviceRoleKey) {
+      authorized = true;
+    } else if (token) {
+      const authDb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: userData } = await authDb.auth.getUser(token);
+      if (userData?.user) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
+      return json({ error: "Unauthorized access." }, 401);
+    }
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
@@ -54,10 +77,11 @@ Deno.serve(async (req) => {
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
-        } catch (e: any) {
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
+        } catch (e: unknown) {
+          const err = e as { statusCode?: number; body?: string };
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
-          } else console.error("push failed", e?.statusCode, e?.body);
+          } else console.error("push failed", err?.statusCode, err?.body);
         }
       }
       await db.from("push_notified").upsert(mine.map((t) => ({ task_id: t.id, notified_on: today })));
@@ -68,6 +92,3 @@ Deno.serve(async (req) => {
     return json({ error: "failed" }, 500);
   }
 });
-
-const json = (b: unknown, status = 200) =>
-  new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
