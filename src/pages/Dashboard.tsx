@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
@@ -26,7 +27,7 @@ const MiniStat = ({
   label: string;
   value: string;
   sub: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }) => (
   <div className="group relative p-4 rounded-2xl border border-border bg-card/40 backdrop-blur-xl shadow-soft hover:border-border-strong hover:bg-card/70 lift overflow-hidden">
     <div className="flex items-center justify-between mb-2">
@@ -39,41 +40,73 @@ const MiniStat = ({
 );
 
 const Dashboard = () => {
-  const today = new Date();
-  const todayKey = format(today, "yyyy-MM-dd");
+  const todayKey = format(new Date(), "yyyy-MM-dd");
   const { tasks, toggleTask } = useTasks();
   const { habits, toggleToday } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
   const { profile } = useProfile();
 
-  const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
-  const done = todayTasks.filter((t) => t.done).length;
-  const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
-  const focusGoal = profile?.focusGoalMin ?? 180;
-  const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
-  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
-  const insight = getCoachInsight(tasks, sessions, today);
+  // Performance optimization: Group complex computations (task filtering, focus calculations, habit streaks, coach insights, active task sorting)
+  // into a single useMemo block so that 1-second timer ticks (which re-render Dashboard via FocusContext) avoid running expensive calculations.
+  const {
+    today,
+    todayTasks,
+    done,
+    completion,
+    todayMin,
+    focusGoal,
+    focusPct,
+    bestStreak,
+    insight,
+    reminderMsg,
+    activeTask,
+    remainingTasks,
+  } = useMemo(() => {
+    const today = new Date();
+    const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
+    const done = todayTasks.filter((t) => t.done).length;
+    const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
+    const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
+    const focusGoal = profile?.focusGoalMin ?? 180;
+    const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
+    const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+    const insight = getCoachInsight(tasks, sessions, today);
 
-  // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
-  const overdueHigh = getDelayedHighPriority(tasks, today).count;
-  const reminderMsg =
-    !profile?.reminderEnabled ? null
-    : overdueHigh > 0
-      ? `Reminder: ${overdueHigh} high-priority ${overdueHigh === 1 ? "task is" : "tasks are"} overdue. Clear the oldest one first.`
-      : today.getHours() >= 15 && todayMin < focusGoal
-        ? `Reminder: you're at ${todayMin} of ${focusGoal} focus minutes. One session still gets you there.`
-        : null;
+    // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
+    const overdueHigh = getDelayedHighPriority(tasks, today).count;
+    const reminderMsg =
+      !profile?.reminderEnabled ? null
+      : overdueHigh > 0
+        ? `Reminder: ${overdueHigh} high-priority ${overdueHigh === 1 ? "task is" : "tasks are"} overdue. Clear the oldest one first.`
+        : today.getHours() >= 15 && todayMin < focusGoal
+          ? `Reminder: you're at ${todayMin} of ${focusGoal} focus minutes. One session still gets you there.`
+          : null;
 
-  // Active task = first incomplete, sorted by priority high → med → low
-  const priorityOrder = { high: 0, med: 1, low: 2 };
-  const activeTask = [...todayTasks]
-    .filter((t) => !t.done)
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
+    // Active task = first incomplete, sorted by priority high → med → low
+    const priorityOrder = { high: 0, med: 1, low: 2 };
+    const activeTask = [...todayTasks]
+      .filter((t) => !t.done)
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
 
-  // Remaining tasks (excluding active)
-  const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+    // Remaining tasks (excluding active)
+    const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
+
+    return {
+      today,
+      todayTasks,
+      done,
+      completion,
+      todayMin,
+      focusGoal,
+      focusPct,
+      bestStreak,
+      insight,
+      reminderMsg,
+      activeTask,
+      remainingTasks,
+    };
+  }, [tasks, sessions, habits, profile, todayKey]);
 
   const toggle = (id: string) => toggleTask.mutate(id);
 
