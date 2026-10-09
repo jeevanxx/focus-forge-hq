@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getWeeklyFocus,
@@ -22,24 +23,57 @@ import { useFocus } from "@/context/FocusContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Analytics = () => {
-  const now = new Date();
   const navigate = useNavigate();
   const { tasks, isLoading: tasksLoading } = useTasks();
   const { habits } = useHabits();
   const { sessions, isLoading: sessionsLoading } = useFocusSessions();
   const { start } = useFocus();
 
-  const weekly = getWeeklyFocus(sessions, now);
-  const totalMin = getWeeklyFocusTotal(sessions, now);
-  const completion = getCompletionRate(tasks);
-  const delayed = getDelayedHighPriority(tasks, now);
-  const window = getBestFocusWindow(sessions);
-  const avgSession = getAverageSessionLength(sessions);
-  const score = getProductivityScore(tasks, sessions, habits, now);
-  const next = getNextBestAction(tasks, now);
+  // Group analytics calculations into a single useMemo and pass pre-computed values
+  // to avoid redundant duplicate processing across renders.
+  const {
+    weekly,
+    totalMin,
+    completion,
+    delayed,
+    window,
+    avgSession,
+    score,
+    next,
+    maxBar,
+    goalPct,
+  } = useMemo(() => {
+    const now = new Date();
+    const weekly = getWeeklyFocus(sessions, now);
+    const totalMin = getWeeklyFocusTotal(weekly);
+    const completion = getCompletionRate(tasks);
+    const delayed = getDelayedHighPriority(tasks, now);
+    const window = getBestFocusWindow(sessions);
+    const avgSession = getAverageSessionLength(sessions);
+    const score = getProductivityScore(tasks, sessions, habits, now, {
+      completionRate: completion,
+      weeklyFocusTotal: totalMin,
+      delayedCount: delayed.count,
+    });
+    const next = getNextBestAction(tasks, now, delayed);
 
-  const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
-  const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
+    const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
+    const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
+
+    return {
+      weekly,
+      totalMin,
+      completion,
+      delayed,
+      window,
+      avgSession,
+      score,
+      next,
+      maxBar,
+      goalPct,
+    };
+  }, [tasks, sessions, habits]);
+
   const loading = tasksLoading || sessionsLoading;
 
   const tierColor =

@@ -32,6 +32,12 @@ export interface DelayedTasksReport {
   top: Task[]; // up to 3, most overdue first
 }
 
+export interface ProductivityScoreOptions {
+  completionRate?: number;
+  weeklyFocusTotal?: number;
+  delayedCount?: number;
+}
+
 export interface ProductivityScore {
   score: number; // 0-100
   breakdown: {
@@ -93,8 +99,16 @@ export const getWeeklyFocus = (
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+// Fast-path: allows passing pre-calculated DailyFocus[] to skip re-running session filtering.
+export const getWeeklyFocusTotal = (
+  sessionsOrWeekly: FocusSession[] | DailyFocus[],
+  now?: Date
+): number => {
+  if (sessionsOrWeekly.length > 0 && "day" in sessionsOrWeekly[0]) {
+    return (sessionsOrWeekly as DailyFocus[]).reduce((s, d) => s + d.minutes, 0);
+  }
+  return getWeeklyFocus(sessionsOrWeekly as FocusSession[], now).reduce((s, d) => s + d.minutes, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
@@ -191,15 +205,17 @@ export const getProductivityScore = (
   tasks: Task[],
   sessions: FocusSession[],
   habits: Habit[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  options?: ProductivityScoreOptions
 ): ProductivityScore => {
-  const completion = getCompletionRate(tasks) / 100; // 0-1
+  // Use pre-computed metrics if provided to prevent duplicate O(N) tasks/sessions passes
+  const completion = (options?.completionRate ?? getCompletionRate(tasks)) / 100; // 0-1
   const focusProgress = Math.min(
     1,
-    getWeeklyFocusTotal(sessions, now) / WEEKLY_FOCUS_GOAL_MIN
+    (options?.weeklyFocusTotal ?? getWeeklyFocusTotal(sessions, now)) / WEEKLY_FOCUS_GOAL_MIN
   );
   const consistency = getStreakConsistency(habits);
-  const delayedCount = getDelayedHighPriority(tasks, now).count;
+  const delayedCount = options?.delayedCount ?? getDelayedHighPriority(tasks, now).count;
 
   const completionPts = Math.round(completion * 40);
   const focusPts = Math.round(focusProgress * 30);
@@ -231,9 +247,11 @@ export const getProductivityScore = (
 
 export const getNextBestAction = (
   tasks: Task[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  delayedReport?: DelayedTasksReport
 ): NextAction => {
-  const delayed = getDelayedHighPriority(tasks, now).top;
+  // Use pre-computed delayed tasks report if provided to avoid redundant sorting and filtering
+  const delayed = (delayedReport ?? getDelayedHighPriority(tasks, now)).top;
   if (delayed.length > 0) {
     const t = delayed[0];
     return {
