@@ -1,14 +1,40 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { isRequestAuthorized } from "./auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface WebPushError {
+  statusCode?: number;
+  body?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    const authHeader = req.headers.get("Authorization");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    const authorized = await isRequestAuthorized({
+      authHeader,
+      serviceRoleKey,
+      getUserFn: async (token: string) => {
+        if (!supabaseUrl || !supabaseAnonKey) return null;
+        const dbAuth = createClient(supabaseUrl, supabaseAnonKey);
+        const { data } = await dbAuth.auth.getUser(token);
+        return data?.user ?? null;
+      },
+    });
+
+    if (!authorized) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
@@ -54,10 +80,11 @@ Deno.serve(async (req) => {
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
-        } catch (e: any) {
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
+        } catch (e: unknown) {
+          const wpErr = e as WebPushError;
+          if (wpErr?.statusCode === 404 || wpErr?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
-          } else console.error("push failed", e?.statusCode, e?.body);
+          } else console.error("push failed", wpErr?.statusCode, wpErr?.body);
         }
       }
       await db.from("push_notified").upsert(mine.map((t) => ({ task_id: t.id, notified_on: today })));
