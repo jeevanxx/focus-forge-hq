@@ -1,19 +1,38 @@
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
+import type { Task } from "@/lib/types";
 
 const CalendarPage = () => {
   const { tasks, toggleTask } = useTasks();
   const [anchor, setAnchor] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
-  const selectedKey = format(selected, "yyyy-MM-dd");
-  const selectedTasks = tasks.filter((t) => t.dueDate === selectedKey);
+
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 1 }), [anchor]);
+  const days = useMemo(() => Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i)), [weekStart]);
+
+  // Index tasks by dueDate in a single O(N) pass to avoid repeated O(N) array filtering on render
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const task of tasks) {
+      if (!task.dueDate) continue;
+      const existing = map.get(task.dueDate);
+      if (existing) {
+        existing.push(task);
+      } else {
+        map.set(task.dueDate, [task]);
+      }
+    }
+    return map;
+  }, [tasks]);
+
+  const selectedKey = useMemo(() => format(selected, "yyyy-MM-dd"), [selected]);
+  const selectedTasks = useMemo(() => tasksByDate.get(selectedKey) ?? [], [tasksByDate, selectedKey]);
+  const openSelectedTasks = useMemo(() => selectedTasks.filter((t) => !t.done), [selectedTasks]);
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1400px] mx-auto animate-fade-in">
@@ -40,7 +59,7 @@ const CalendarPage = () => {
         {days.map((d) => {
           const isSel = isSameDay(d, selected);
           const key = format(d, "yyyy-MM-dd");
-          const tasksForDay = tasks.filter((t) => t.dueDate === key);
+          const tasksForDay = tasksByDate.get(key) ?? [];
           return (
             <button
               key={d.toISOString()}
@@ -94,10 +113,9 @@ const CalendarPage = () => {
           <div className="p-5 rounded-2xl border border-border bg-gradient-card">
             <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-1.5">Time blocks</div>
             <h3 className="font-display text-lg font-semibold mb-3">Suggested schedule</h3>
-            {selectedTasks.filter((t) => !t.done).length ? (
+            {openSelectedTasks.length ? (
               <div className="space-y-2">
-                {selectedTasks
-                  .filter((t) => !t.done)
+                {openSelectedTasks
                   .slice(0, 5)
                   .map((t, i) => {
                     const startMinutes = 9 * 60 + i * 90;
