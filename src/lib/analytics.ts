@@ -78,23 +78,44 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+// BOLT PERFORMANCE OPTIMIZATION:
+// Replaced 7 nested .filter() passes (O(7N) with 7N parseISO/format date calls)
+// with a single-pass iteration (O(N) with N parseISO/format date calls) using Map bucketing.
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+  const dayMap = new Map<string, number>();
+
+  const weekDays = WEEK_LABELS.map((day, i) => {
+    const dateKey = format(addDays(weekStart, i), "yyyy-MM-dd");
+    dayMap.set(dateKey, 0);
+    return { day, date: dateKey };
   });
+
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const key = format(parseISO(s.date), "yyyy-MM-dd");
+    const current = dayMap.get(key);
+    if (current !== undefined) {
+      dayMap.set(key, current + s.durationMin);
+    }
+  }
+
+  return weekDays.map(({ day, date }) => ({
+    day,
+    date,
+    minutes: dayMap.get(date) ?? 0,
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now?: Date,
+  dailyFocus?: DailyFocus[]
+): number =>
+  (dailyFocus ?? getWeeklyFocus(sessions, now)).reduce((s, d) => s + d.minutes, 0);
 
 // ---------- 2. Completion rate ----------
 
@@ -191,15 +212,21 @@ export const getProductivityScore = (
   tasks: Task[],
   sessions: FocusSession[],
   habits: Habit[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  precomputed?: {
+    completionRate?: number;
+    weeklyFocusTotal?: number;
+    delayedCount?: number;
+  }
 ): ProductivityScore => {
-  const completion = getCompletionRate(tasks) / 100; // 0-1
+  const completion = (precomputed?.completionRate ?? getCompletionRate(tasks)) / 100; // 0-1
+  const weeklyTotal = precomputed?.weeklyFocusTotal ?? getWeeklyFocusTotal(sessions, now);
   const focusProgress = Math.min(
     1,
-    getWeeklyFocusTotal(sessions, now) / WEEKLY_FOCUS_GOAL_MIN
+    weeklyTotal / WEEKLY_FOCUS_GOAL_MIN
   );
   const consistency = getStreakConsistency(habits);
-  const delayedCount = getDelayedHighPriority(tasks, now).count;
+  const delayedCount = precomputed?.delayedCount ?? getDelayedHighPriority(tasks, now).count;
 
   const completionPts = Math.round(completion * 40);
   const focusPts = Math.round(focusProgress * 30);
