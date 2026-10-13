@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { isRequestAuthorized } from "./auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -9,12 +10,24 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const db = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey!);
+
+    const authHeader = req.headers.get("Authorization");
+    const authorized = await isRequestAuthorized(
+      authHeader,
+      serviceRoleKey,
+      (token) => db.auth.getUser(token),
+    );
+    if (!authorized) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
       Deno.env.get("VAPID_PRIVATE_KEY")!,
     );
-    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const today = new Date().toISOString().slice(0, 10);
 
     const { data: subs, error: subErr } = await db.from("push_subscriptions").select("*");
