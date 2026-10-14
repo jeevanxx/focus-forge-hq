@@ -1,10 +1,10 @@
 import { Play, Pause, RotateCcw, Coffee, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useFocus } from "@/context/FocusContext";
+import { useFocus, PRESETS } from "@/context/FocusContext";
 
 export const FocusTimer = () => {
-  const { mode, setMode, running, secondsLeft, totalSeconds, taskTitle, start, pause, resume, reset } = useFocus();
+  const { mode, setMode, running, secondsLeft, totalSeconds, taskTitle, start, pause, resume, reset, preset, setPreset } = useFocus();
 
   const progress = totalSeconds > 0 ? 1 - secondsLeft / totalSeconds : 0;
   const radius = 92;
@@ -55,6 +55,22 @@ export const FocusTimer = () => {
               <Coffee className="h-3 w-3" /> Break
             </button>
           </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5">
+          {PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setPreset(p.id)}
+              disabled={running}
+              className={cn(
+                "press px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums border transition-all disabled:opacity-50",
+                preset === p.id ? "border-primary/50 bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center justify-center my-6">
