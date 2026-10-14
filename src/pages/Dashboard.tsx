@@ -364,7 +364,7 @@ const Dashboard = () => {
             </div>
             <div className="space-y-2.5">
               {remainingTasks.map((t) => (
-                <TaskCard key={t.id} task={t} onToggle={toggle} />
+                <TaskCard key={t.id} task={t} onToggle={toggle} onToggleSubtask={(taskId, subId) => toggleSubtask.mutate({ taskId, subId })} />
               ))}
               {!remainingTasks.length && (
                 <NewTaskDialog
