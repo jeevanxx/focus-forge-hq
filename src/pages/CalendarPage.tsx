@@ -92,30 +92,26 @@ const CalendarPage = () => {
 
         <div className="space-y-3">
           <div className="p-5 rounded-2xl border border-border bg-gradient-card">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-1.5">Time blocks</div>
-            <h3 className="font-display text-lg font-semibold mb-3">Suggested schedule</h3>
-            {selectedTasks.filter((t) => !t.done).length ? (
-              <div className="space-y-2">
-                {selectedTasks
-                  .filter((t) => !t.done)
-                  .slice(0, 5)
-                  .map((t, i) => {
-                    const startMinutes = 9 * 60 + i * 90;
-                    const time = `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}`;
-                    return (
-                      <div key={t.id} className="flex items-center gap-3 text-sm">
-                        <span className="font-mono text-xs text-muted-foreground w-10">{time}</span>
-                        <div className="flex-1 h-7 rounded-md bg-secondary border border-border px-2.5 flex items-center justify-between gap-2">
-                          <span className="text-xs truncate">{t.title}</span>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{t.estimateMin ?? 25}m</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No open tasks to block out for this day.</p>
-            )}
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-1.5">Workload</div>
+            <h3 className="font-display text-lg font-semibold mb-3">Time needed</h3>
+            {(() => {
+              const open = selectedTasks.filter((t) => !t.done);
+              const mins = open.reduce((s, t) => s + (t.estimateMin ?? 25), 0);
+              const h = Math.floor(mins / 60);
+              const m = mins % 60;
+              return open.length ? (
+                <div>
+                  <div className="font-display text-3xl font-bold tracking-tight">
+                    {h ? `${h}h ` : ""}{m}m
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    across {open.length} open {open.length === 1 ? "task" : "tasks"}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No open tasks for this day.</p>
+              );
+            })()}
           </div>
         </div>
       </div>
