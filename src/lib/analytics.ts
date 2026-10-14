@@ -83,14 +83,26 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  // Map week days to their target date strings (yyyy-MM-dd)
+  const weekDays = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, dateKey: format(date, "yyyy-MM-dd") };
   });
+
+  // Performance optimization: Single-pass O(N) aggregation of focus minutes by date key.
+  // Avoids O(7N) nested filtering and re-parsing ISO date strings 7 times per session.
+  const minuteMap = new Map<string, number>();
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const key = format(parseISO(s.date), "yyyy-MM-dd");
+    minuteMap.set(key, (minuteMap.get(key) || 0) + s.durationMin);
+  }
+
+  return weekDays.map(({ day, dateKey }) => ({
+    day,
+    date: dateKey,
+    minutes: minuteMap.get(dateKey) ?? 0,
+  }));
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
@@ -191,15 +203,19 @@ export const getProductivityScore = (
   tasks: Task[],
   sessions: FocusSession[],
   habits: Habit[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  precomputed?: {
+    completionRate?: number;
+    weeklyFocusTotal?: number;
+    delayedCount?: number;
+  }
 ): ProductivityScore => {
-  const completion = getCompletionRate(tasks) / 100; // 0-1
-  const focusProgress = Math.min(
-    1,
-    getWeeklyFocusTotal(sessions, now) / WEEKLY_FOCUS_GOAL_MIN
-  );
+  // Performance optimization: Use precomputed values if provided to avoid redundant O(N) recalculations
+  const completion = (precomputed?.completionRate ?? getCompletionRate(tasks)) / 100; // 0-1
+  const weeklyTotal = precomputed?.weeklyFocusTotal ?? getWeeklyFocusTotal(sessions, now);
+  const focusProgress = Math.min(1, weeklyTotal / WEEKLY_FOCUS_GOAL_MIN);
   const consistency = getStreakConsistency(habits);
-  const delayedCount = getDelayedHighPriority(tasks, now).count;
+  const delayedCount = precomputed?.delayedCount ?? getDelayedHighPriority(tasks, now).count;
 
   const completionPts = Math.round(completion * 40);
   const focusPts = Math.round(focusProgress * 30);
@@ -231,9 +247,11 @@ export const getProductivityScore = (
 
 export const getNextBestAction = (
   tasks: Task[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  precomputedDelayed?: DelayedTasksReport
 ): NextAction => {
-  const delayed = getDelayedHighPriority(tasks, now).top;
+  // Performance optimization: Use precomputed delayed report if available
+  const delayed = (precomputedDelayed ?? getDelayedHighPriority(tasks, now)).top;
   if (delayed.length > 0) {
     const t = delayed[0];
     return {
