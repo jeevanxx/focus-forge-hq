@@ -1,5 +1,6 @@
 import { format } from "date-fns";
-import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing, X } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
@@ -55,6 +56,7 @@ const Dashboard = () => {
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
   const insight = getCoachInsight(tasks, sessions, today);
+  const [dismissedKey, setDismissedKey] = useState(() => localStorage.getItem("ff_reminder_dismissed"));
 
   // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
   const overdueHigh = getDelayedHighPriority(tasks, today).count;
@@ -234,7 +236,7 @@ const Dashboard = () => {
       <OnboardingChecklist />
 
       {/* ============ REMINDER NUDGE ============ */}
-      {reminderMsg && (
+      {reminderMsg && dismissedKey !== `${todayKey}:${reminderMsg}` && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -244,7 +246,18 @@ const Dashboard = () => {
           <div className="h-9 w-9 shrink-0 rounded-xl bg-accent/20 border border-accent/40 grid place-items-center">
             <BellRing className="h-4 w-4 text-accent" />
           </div>
-          <p className="text-sm font-medium text-foreground/90">{reminderMsg}</p>
+          <p className="flex-1 text-sm font-medium text-foreground/90">{reminderMsg}</p>
+          <button
+            aria-label="Dismiss reminder"
+            onClick={() => {
+              const k = `${todayKey}:${reminderMsg}`;
+              localStorage.setItem("ff_reminder_dismissed", k);
+              setDismissedKey(k);
+            }}
+            className="h-8 w-8 shrink-0 grid place-items-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </motion.div>
       )}
 
