@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import type { Task, Priority } from "@/lib/types";
+import type { Task, Priority, Subtask } from "@/lib/types";
 import type { Tables } from "@/integrations/supabase/types";
 
 const mapTask = (row: Tables<"tasks">): Task => ({
@@ -13,6 +13,7 @@ const mapTask = (row: Tables<"tasks">): Task => ({
   dueDate: row.due_date,
   estimateMin: row.estimate_min ?? undefined,
   tag: row.tag ?? undefined,
+  subtasks: Array.isArray((row as any).subtasks) ? ((row as any).subtasks as Subtask[]) : [],
 });
 
 export interface NewTask {
@@ -22,6 +23,7 @@ export interface NewTask {
   dueDate: string;
   estimateMin?: number;
   tag?: string;
+  subtasks?: Subtask[];
 }
 
 export const tasksKey = (userId?: string) => ["tasks", userId] as const;
@@ -58,7 +60,8 @@ export const useTasks = () => {
           due_date: input.dueDate,
           estimate_min: input.estimateMin ?? null,
           tag: input.tag || null,
-        })
+          subtasks: (input.subtasks ?? []) as any,
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -102,11 +105,24 @@ export const useTasks = () => {
           due_date: input.dueDate,
           estimate_min: input.estimateMin ?? null,
           tag: input.tag || null,
-        })
+          ...(input.subtasks ? { subtasks: input.subtasks as any } : {}),
+        } as any)
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+
+  const toggleSubtask = useMutation({
+    mutationFn: async ({ taskId, subId }: { taskId: string; subId: string }) => {
+      const t = (qc.getQueryData<Task[]>(key) ?? []).find((x) => x.id === taskId);
+      if (!t) return;
+      const next = t.subtasks.map((s) => (s.id === subId ? { ...s, done: !s.done } : s));
+      qc.setQueryData<Task[]>(key, (old) => (old ?? []).map((x) => (x.id === taskId ? { ...x, subtasks: next } : x)));
+      const { error } = await supabase.from("tasks").update({ subtasks: next as any } as any).eq("id", taskId);
+      if (error) throw error;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
 
   const deleteTask = useMutation({
@@ -124,6 +140,7 @@ export const useTasks = () => {
     createTask,
     updateTask,
     toggleTask,
+    toggleSubtask,
     deleteTask,
   };
 };

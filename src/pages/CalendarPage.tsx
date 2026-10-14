@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 
 const CalendarPage = () => {
-  const { tasks, toggleTask } = useTasks();
+  const { tasks, toggleTask, toggleSubtask } = useTasks();
   const [anchor, setAnchor] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
   const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
@@ -81,7 +81,8 @@ const CalendarPage = () => {
           </div>
           {selectedTasks.length ? (
             <div className="space-y-2.5">
-              {selectedTasks.map((t) => <TaskCard key={t.id} task={t} onToggle={(id) => toggleTask.mutate(id)} />)}
+              {selectedTasks.map((t) => <TaskCard key={t.id} task={t} onToggle={(id) => toggleTask.mutate(id)}
+              onToggleSubtask={(taskId, subId) => toggleSubtask.mutate({ taskId, subId })} />)}
             </div>
           ) : (
             <div className="p-10 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">

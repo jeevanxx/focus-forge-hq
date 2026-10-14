@@ -42,7 +42,7 @@ const MiniStat = ({
 const Dashboard = () => {
   const today = new Date();
   const todayKey = format(today, "yyyy-MM-dd");
-  const { tasks, toggleTask } = useTasks();
+  const { tasks, toggleTask, toggleSubtask } = useTasks();
   const { habits, toggleToday } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
