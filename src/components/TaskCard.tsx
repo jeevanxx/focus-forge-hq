@@ -8,6 +8,7 @@ interface Props {
   onToggle?: (id: string) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: string) => void;
+  onToggleSubtask?: (taskId: string, subId: string) => void;
   isActive?: boolean;
 }
 
@@ -25,7 +26,7 @@ const priorityBar = {
 
 const priorityLabel = { high: "High", med: "Med", low: "Low" };
 
-export const TaskCard = ({ task, onToggle, onEdit, onDelete, isActive = false }: Props) => {
+export const TaskCard = ({ task, onToggle, onEdit, onDelete, onToggleSubtask, isActive = false }: Props) => {
   const hasActions = !!(onEdit || onDelete);
   return (
     <motion.div
@@ -104,6 +105,27 @@ export const TaskCard = ({ task, onToggle, onEdit, onDelete, isActive = false }:
         {task.notes && (
           <div className="text-xs text-muted-foreground/80 mt-1 line-clamp-1">{task.notes}</div>
         )}
+        {task.subtasks?.length > 0 && (
+          <ul className="mt-2.5 space-y-1">
+            {task.subtasks.map((st) => (
+              <li key={st.id}>
+                <button
+                  onClick={() => onToggleSubtask?.(task.id, st.id)}
+                  disabled={!onToggleSubtask}
+                  className="flex items-center gap-2 text-xs text-left w-full group/sub"
+                >
+                  <span className={cn(
+                    "h-3.5 w-3.5 shrink-0 rounded border grid place-items-center",
+                    st.done ? "bg-primary border-transparent" : "border-border-strong group-hover/sub:border-primary/70"
+                  )}>
+                    {st.done && <Check className="h-2.5 w-2.5 text-primary-foreground" strokeWidth={3} />}
+                  </span>
+                  <span className={cn("truncate", st.done && "line-through text-muted-foreground")}>{st.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <span className={cn(
             "text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md border",
@@ -114,6 +136,11 @@ export const TaskCard = ({ task, onToggle, onEdit, onDelete, isActive = false }:
           {task.tag && (
             <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-secondary/80 text-secondary-foreground border border-border">
               {task.tag}
+            </span>
+          )}
+          {task.subtasks?.length > 0 && (
+            <span className="text-[11px] text-muted-foreground font-medium">
+              {task.subtasks.filter((x) => x.done).length}/{task.subtasks.length} steps
             </span>
           )}
           {task.estimateMin && (

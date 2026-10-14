@@ -42,7 +42,7 @@ const MiniStat = ({
 const Dashboard = () => {
   const today = new Date();
   const todayKey = format(today, "yyyy-MM-dd");
-  const { tasks, toggleTask } = useTasks();
+  const { tasks, toggleTask, toggleSubtask } = useTasks();
   const { habits, toggleToday } = useHabits();
   const { sessions } = useFocusSessions();
   const { start } = useFocus();
@@ -364,7 +364,7 @@ const Dashboard = () => {
             </div>
             <div className="space-y-2.5">
               {remainingTasks.map((t) => (
-                <TaskCard key={t.id} task={t} onToggle={toggle} />
+                <TaskCard key={t.id} task={t} onToggle={toggle} onToggleSubtask={(taskId, subId) => toggleSubtask.mutate({ taskId, subId })} />
               ))}
               {!remainingTasks.length && (
                 <NewTaskDialog

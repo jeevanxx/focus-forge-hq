@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTasks } from "@/hooks/useTasks";
 import { toast } from "@/hooks/use-toast";
-import type { Priority, Task } from "@/lib/types";
+import type { Priority, Subtask, Task } from "@/lib/types";
+import { Plus, X } from "lucide-react";
 
 interface Props {
   trigger: ReactNode;
@@ -34,6 +35,8 @@ export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOp
   const [dueDate, setDueDate] = useState(format(defaultDate ?? new Date(), "yyyy-MM-dd"));
   const [estimate, setEstimate] = useState("25");
   const [tag, setTag] = useState("");
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSub, setNewSub] = useState("");
 
   // Prefill when editing; reset when creating.
   useEffect(() => {
@@ -45,11 +48,19 @@ export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOp
       setDueDate(task.dueDate);
       setEstimate(task.estimateMin ? String(task.estimateMin) : "");
       setTag(task.tag ?? "");
+      setSubtasks(task.subtasks ?? []);
     }
   }, [open, task]);
 
   const isEdit = !!task;
   const pending = createTask.isPending || updateTask.isPending;
+
+  const addSub = () => {
+    const t = newSub.trim();
+    if (!t) return;
+    setSubtasks([...subtasks, { id: crypto.randomUUID(), title: t, done: false }]);
+    setNewSub("");
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -61,6 +72,7 @@ export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOp
       dueDate,
       estimateMin: estimate ? Number(estimate) : undefined,
       tag: tag.trim() || undefined,
+      subtasks,
     };
     try {
       if (isEdit) {
@@ -70,7 +82,7 @@ export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOp
         await createTask.mutateAsync(payload);
         toast({ title: "Task added", description: "It's on the board. Now go do it." });
       }
-      setTitle(""); setNotes(""); setTag(""); setOpen(false);
+      setTitle(""); setNotes(""); setTag(""); setSubtasks([]); setNewSub(""); setOpen(false);
     } catch (err) {
       toast({ title: isEdit ? "Could not update task" : "Could not add task", description: (err as Error).message, variant: "destructive" });
     }
@@ -116,6 +128,31 @@ export const NewTaskDialog = ({ trigger, defaultDate, task, open: openProp, onOp
             <div className="space-y-2">
               <Label htmlFor="task-tag">Tag</Label>
               <Input id="task-tag" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Strategy" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="task-sub">Steps</Label>
+            {subtasks.map((st) => (
+              <div key={st.id} className="flex items-center gap-2 text-sm rounded-lg border border-border bg-secondary/50 px-3 py-1.5">
+                <span className="flex-1 truncate">{st.title}</span>
+                <button type="button" aria-label={`Remove ${st.title}`} onClick={() => setSubtasks(subtasks.filter((x) => x.id !== st.id))} className="text-muted-foreground hover:text-destructive">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                id="task-sub"
+                value={newSub}
+                onChange={(e) => setNewSub(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addSub(); }
+                }}
+                placeholder="Break it down: first step…"
+              />
+              <Button type="button" variant="outline" size="icon" onClick={addSub} aria-label="Add step">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <DialogFooter>

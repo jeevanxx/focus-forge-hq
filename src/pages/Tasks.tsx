@@ -13,7 +13,7 @@ const filters = ["All", "Today", "High", "Done"] as const;
 type Filter = typeof filters[number];
 
 const Tasks = () => {
-  const { tasks, isLoading, toggleTask, deleteTask } = useTasks();
+  const { tasks, isLoading, toggleTask, toggleSubtask, deleteTask } = useTasks();
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
@@ -91,6 +91,7 @@ const Tasks = () => {
             key={t.id}
             task={t}
             onToggle={(id) => toggleTask.mutate(id)}
+              onToggleSubtask={(taskId, subId) => toggleSubtask.mutate({ taskId, subId })}
             onEdit={(task) => setEditing(task)}
             onDelete={(id) => setDeleting(tasks.find((x) => x.id === id) ?? null)}
           />

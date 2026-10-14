@@ -12,6 +12,13 @@ export interface Task {
   dueDate: string; // yyyy-MM-dd
   estimateMin?: number;
   tag?: string;
+  subtasks: Subtask[];
+}
+
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
 }
 
 export interface Habit {
