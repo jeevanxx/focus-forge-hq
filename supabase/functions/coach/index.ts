@@ -74,8 +74,7 @@ FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focus
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-6-astra",
-        reasoning_effort: "low",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "system", content: contextBlock },
