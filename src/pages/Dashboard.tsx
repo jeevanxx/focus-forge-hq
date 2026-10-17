@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap, BellRing, X } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
@@ -27,7 +27,7 @@ const MiniStat = ({
   label: string;
   value: string;
   sub: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }) => (
   <div className="group relative p-4 rounded-2xl border border-border bg-card/40 backdrop-blur-xl shadow-soft hover:border-border-strong hover:bg-card/70 lift overflow-hidden">
     <div className="flex items-center justify-between mb-2">
@@ -40,7 +40,7 @@ const MiniStat = ({
 );
 
 const Dashboard = () => {
-  const today = new Date();
+  const [today] = useState(() => new Date());
   const todayKey = format(today, "yyyy-MM-dd");
   const { tasks, toggleTask, toggleSubtask } = useTasks();
   const { habits, toggleToday } = useHabits();
@@ -48,18 +48,42 @@ const Dashboard = () => {
   const { start } = useFocus();
   const { profile } = useProfile();
 
-  const todayTasks = tasks.filter((t) => t.dueDate === todayKey);
-  const done = todayTasks.filter((t) => t.done).length;
-  const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
   const focusGoal = profile?.focusGoalMin ?? 180;
+
+  // Group calculations into a single useMemo pass to avoid redundant O(N) array scans on re-renders.
+  const { todayTasks, done, completion, todayMin, bestStreak, insight, overdueHigh, activeTask, remainingTasks } = useMemo(() => {
+    const tTasks = tasks.filter((t) => t.dueDate === todayKey);
+    const dCount = tTasks.filter((t) => t.done).length;
+    const comp = tTasks.length ? Math.round((dCount / tTasks.length) * 100) : 0;
+    const tMin = getWeeklyFocus(sessions, today).find((d) => d.date === todayKey)?.minutes ?? 0;
+    const bStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+    const cInsight = getCoachInsight(tasks, sessions, today);
+    const oHigh = getDelayedHighPriority(tasks, today).count;
+
+    const priorityOrder = { high: 0, med: 1, low: 2 };
+    const actTask = [...tTasks]
+      .filter((t) => !t.done)
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
+
+    const remTasks = tTasks.filter((t) => t.id !== actTask?.id);
+
+    return {
+      todayTasks: tTasks,
+      done: dCount,
+      completion: comp,
+      todayMin: tMin,
+      bestStreak: bStreak,
+      insight: cInsight,
+      overdueHigh: oHigh,
+      activeTask: actTask,
+      remainingTasks: remTasks,
+    };
+  }, [tasks, habits, sessions, todayKey, today]);
+
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
-  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
-  const insight = getCoachInsight(tasks, sessions, today);
   const [dismissedKey, setDismissedKey] = useState(() => localStorage.getItem("ff_reminder_dismissed"));
 
   // Gentle reminder: overdue high-priority work, or goal unmet by late afternoon.
-  const overdueHigh = getDelayedHighPriority(tasks, today).count;
   const reminderMsg =
     !profile?.reminderEnabled ? null
     : overdueHigh > 0
@@ -67,15 +91,6 @@ const Dashboard = () => {
       : today.getHours() >= 15 && todayMin < focusGoal
         ? `Reminder: you're at ${todayMin} of ${focusGoal} focus minutes. One session still gets you there.`
         : null;
-
-  // Active task = first incomplete, sorted by priority high → med → low
-  const priorityOrder = { high: 0, med: 1, low: 2 };
-  const activeTask = [...todayTasks]
-    .filter((t) => !t.done)
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])[0];
-
-  // Remaining tasks (excluding active)
-  const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
 
   const toggle = (id: string) => toggleTask.mutate(id);
 
