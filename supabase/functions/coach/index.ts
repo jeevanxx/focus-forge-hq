@@ -15,6 +15,49 @@ How to behave:
 - Match the user's tone and length: short for small talk, more detail when they ask for it. Use simple markdown (bold, lists) when useful.
 - The conversation includes your saved past chats with this user. Remember what they told you (goals, struggles, commitments), refer back to it naturally, and follow up on earlier advice to give personal, real advice.`;
 
+function sanitizeInputMessage(msg: unknown, maxLen = 1000): string {
+  if (typeof msg !== "string") return "";
+  return msg.trim().slice(0, maxLen);
+}
+
+function sanitizeContext(context: any) {
+  const ctx = (context && typeof context === "object" ? context : {}) as any;
+
+  const now = typeof ctx.now === "string" && ctx.now.trim() ? ctx.now.trim().slice(0, 100) : new Date().toISOString();
+
+  const rawTasks = Array.isArray(ctx.tasks) ? ctx.tasks.slice(0, 20) : [];
+  const tasks = rawTasks.map((t: any) => ({
+    title: String(t?.title ?? "Untitled").trim().slice(0, 150),
+    done: Boolean(t?.done),
+    priority: String(t?.priority ?? "normal").trim().slice(0, 20),
+    dueDate: String(t?.dueDate ?? "").trim().slice(0, 20),
+    estimateMin: typeof t?.estimateMin === "number" ? t.estimateMin : String(t?.estimateMin ?? "?").slice(0, 10),
+    tag: String(t?.tag ?? "-").trim().slice(0, 30),
+    notes: String(t?.notes ?? "-").trim().slice(0, 200),
+    overdue: Boolean(t?.overdue),
+  }));
+
+  const rawHabits = Array.isArray(ctx.habits) ? ctx.habits.slice(0, 20) : [];
+  const habits = rawHabits.map((h: any) => ({
+    name: String(h?.name ?? "Habit").trim().slice(0, 100),
+    streak: Number.isFinite(Number(h?.streak)) ? Number(h.streak) : 0,
+    doneToday: Boolean(h?.doneToday),
+  }));
+
+  const focusMinutesToday = Number.isFinite(Number(ctx.focusMinutesToday)) ? Number(ctx.focusMinutesToday) : 0;
+  const focusMinutesWeek = Number.isFinite(Number(ctx.focusMinutesWeek)) ? Number(ctx.focusMinutesWeek) : 0;
+  const bestWindow = String(ctx.bestWindow ?? "unknown").trim().slice(0, 50);
+
+  return {
+    now,
+    tasks,
+    habits,
+    focusMinutesToday,
+    focusMinutesWeek,
+    bestWindow,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,8 +75,8 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "Please sign in." }, 401);
 
     const body = await req.json();
-    const context = body?.context;
-    const message = typeof body?.message === "string" ? body.message.trim().slice(0, 4000) : "";
+    const sanitizedCtx = sanitizeContext(body?.context);
+    const message = sanitizeInputMessage(body?.message, 1000);
     const persist = body?.persist !== false;
     if (!message) return json({ error: "Message is required." }, 400);
 
@@ -46,26 +89,32 @@ Deno.serve(async (req) => {
       .select("role, content")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(10);
+
+    // Validate role to strictly 'user' | 'assistant' and bound content length
     const messages = [
-      ...(past ?? []).reverse().map((m) => ({ role: m.role, content: m.content.slice(0, 4000) })),
+      ...(past ?? []).reverse().map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: String(m.content ?? "").trim().slice(0, 1000),
+      })),
       { role: "user", content: message },
     ];
+
     if (persist) {
       await db.from("coach_messages").insert({ user_id: user.id, role: "user", content: message });
     }
 
-    const contextBlock = `Current time: ${context?.now ?? new Date().toISOString()}
+    const contextBlock = `Current time: ${sanitizedCtx.now}
 
 TASKS (title | status | priority | due | estimate | tag | notes):
-${(context?.tasks ?? []).slice(0, 100).map((t: any) =>
-  `- ${String(t.title).slice(0, 200)} | ${t.done ? "DONE" : t.overdue ? "OVERDUE" : "open"} | ${t.priority} | ${t.dueDate} | ${t.estimateMin ?? "?"}m | ${t.tag ?? "-"} | ${t.notes ? String(t.notes).slice(0, 300) : "-"}`
+${sanitizedCtx.tasks.map((t) =>
+  `- ${t.title} | ${t.done ? "DONE" : t.overdue ? "OVERDUE" : "open"} | ${t.priority} | ${t.dueDate} | ${t.estimateMin}m | ${t.tag} | ${t.notes}`
 ).join("\n") || "- none"}
 
 HABITS (name | streak | done today):
-${(context?.habits ?? []).map((h: any) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
+${sanitizedCtx.habits.map((h) => `- ${h.name} | ${h.streak}d | ${h.doneToday ? "yes" : "no"}`).join("\n") || "- none"}
 
-FOCUS: ${context?.focusMinutesToday ?? 0} minutes logged today, ${context?.focusMinutesWeek ?? 0} this week. Peak window: ${context?.bestWindow ?? "unknown"}.`;
+FOCUS: ${sanitizedCtx.focusMinutesToday} minutes logged today, ${sanitizedCtx.focusMinutesWeek} this week. Peak window: ${sanitizedCtx.bestWindow}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
