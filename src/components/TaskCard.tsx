@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Task } from "@/lib/types";
 import { Check, Clock, Pencil, Trash2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,8 @@ const priorityBar = {
 
 const priorityLabel = { high: "High", med: "Med", low: "Low" };
 
-export const TaskCard = ({ task, onToggle, onEdit, onDelete, onToggleSubtask, isActive = false }: Props) => {
+// Memoized with React.memo to prevent unnecessary re-renders during parent list re-renders (e.g., search filter typing, timer ticks).
+export const TaskCard = memo(({ task, onToggle, onEdit, onDelete, onToggleSubtask, isActive = false }: Props) => {
   const hasActions = !!(onEdit || onDelete);
   return (
     <motion.div
@@ -158,4 +160,6 @@ export const TaskCard = ({ task, onToggle, onEdit, onDelete, onToggleSubtask, is
       </div>
     </motion.div>
   );
-};
+});
+
+TaskCard.displayName = "TaskCard";
