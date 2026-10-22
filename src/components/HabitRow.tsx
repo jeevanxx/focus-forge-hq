@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Habit } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Check, Flame, Pencil, Snowflake, Trash2 } from "lucide-react";
@@ -16,7 +17,12 @@ interface Props {
   onDelete?: (id: string) => void;
 }
 
-export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
+/**
+ * HabitRow component memoized with React.memo to prevent unnecessary re-renders
+ * when parent components (e.g. Habits page, Dashboard) re-render due to modal
+ * state changes, filter changes, or timer ticks.
+ */
+export const HabitRow = memo(({ habit, onToggle, onEdit, onDelete }: Props) => {
   const completed = habit.history.filter(Boolean).length;
   const pct = Math.round((completed / Math.max(1, habit.target)) * 100);
   const doneToday = habit.history[habit.history.length - 1];
@@ -110,4 +116,6 @@ export const HabitRow = ({ habit, onToggle, onEdit, onDelete }: Props) => {
       )}
     </div>
   );
-};
+});
+
+HabitRow.displayName = "HabitRow";

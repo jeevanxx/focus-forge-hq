@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { HabitRow } from "@/components/HabitRow";
 import { NewHabitDialog } from "@/components/NewHabitDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -28,6 +28,19 @@ const Habits = () => {
       toast({ title: "Could not delete habit", description: (err as Error).message, variant: "destructive" });
     }
   };
+
+  // Stabilize callbacks passed to memoized HabitRow components to prevent re-renders
+  const handleToggle = useCallback((id: string) => {
+    toggleToday.mutate(id);
+  }, [toggleToday]);
+
+  const handleEdit = useCallback((habit: Habit) => {
+    setEditing(habit);
+  }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    setDeleting(habits.find((x) => x.id === id) ?? null);
+  }, [habits]);
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
@@ -78,9 +91,9 @@ const Habits = () => {
           <HabitRow
             key={h.id}
             habit={h}
-            onToggle={(id) => toggleToday.mutate(id)}
-            onEdit={(habit) => setEditing(habit)}
-            onDelete={(id) => setDeleting(habits.find((x) => x.id === id) ?? null)}
+            onToggle={handleToggle}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
         ))}
         {!isLoading && !habits.length && (
