@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar, MobileBottomNav, MobileTopBar } from "./Navigation";
 import { AssistantFab } from "./assistant/AssistantFab";
+import { CommandPalette } from "./CommandPalette";
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   return (
@@ -14,6 +15,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
       </div>
       <MobileBottomNav />
       <AssistantFab />
+      <CommandPalette />
     </div>
   );
 };
