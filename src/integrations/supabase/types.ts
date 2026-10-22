@@ -234,6 +234,7 @@ export type Database = {
           id: string
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          subtasks: Json
           tag: string | null
           title: string
           updated_at: string
@@ -248,6 +249,7 @@ export type Database = {
           id?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          subtasks?: Json
           tag?: string | null
           title: string
           updated_at?: string
@@ -262,6 +264,7 @@ export type Database = {
           id?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          subtasks?: Json
           tag?: string | null
           title?: string
           updated_at?: string
