@@ -50,17 +50,23 @@ Deno.serve(async (req) => {
         body: mine.length === 1 ? `"${top.title}" is overdue. Start it now.` : `Start with "${top.title}".`,
         url: "/tasks",
       });
+      let userSent = 0;
       for (const s of subs.filter((x) => x.user_id === uid)) {
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
+          userSent++;
         } catch (e: any) {
           if (e?.statusCode === 404 || e?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
           } else console.error("push failed", e?.statusCode, e?.body);
         }
       }
-      await db.from("push_notified").upsert(mine.map((t) => ({ task_id: t.id, notified_on: today })));
+      // Only mark tasks as notified when an alert was actually delivered,
+      // so subscribing later the same day still gets the first alert.
+      if (userSent > 0) {
+        await db.from("push_notified").upsert(mine.map((t) => ({ task_id: t.id, notified_on: today })));
+      }
     }
     return json({ sent });
   } catch (e) {
