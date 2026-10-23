@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, Coffee, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLogFocusSession } from "@/hooks/useFocusSessions";
 
 type Mode = "focus" | "break";
 const DURATIONS: Record<Mode, number> = { focus: 25 * 60, break: 5 * 60 };
@@ -11,6 +12,8 @@ export const FocusTimer = () => {
   const [secondsLeft, setSecondsLeft] = useState(DURATIONS.focus);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<number | null>(null);
+  const prevSecondsRef = useRef(DURATIONS.focus);
+  const { mutate: logSession } = useLogFocusSession();
 
   useEffect(() => {
     if (running) {
@@ -28,6 +31,14 @@ export const FocusTimer = () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
   }, [running]);
+
+  // Log a focus session when the timer naturally reaches 0
+  useEffect(() => {
+    if (prevSecondsRef.current > 0 && secondsLeft === 0 && mode === "focus") {
+      logSession({ durationMin: DURATIONS.focus / 60 });
+    }
+    prevSecondsRef.current = secondsLeft;
+  }, [secondsLeft]);
 
   const switchMode = (m: Mode) => {
     setMode(m);

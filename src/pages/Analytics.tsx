@@ -1,4 +1,6 @@
-import { mockSessions, mockTasks, mockHabits } from "@/lib/mock-data";
+import { useTasks } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions } from "@/hooks/useFocusSessions";
 import {
   getWeeklyFocus,
   getWeeklyFocusTotal,
@@ -25,15 +27,18 @@ import { Button } from "@/components/ui/button";
 
 const Analytics = () => {
   const now = new Date();
+  const { data: tasks = [] } = useTasks();
+  const { data: habits = [] } = useHabits();
+  const { data: sessions = [] } = useFocusSessions();
 
-  const weekly = getWeeklyFocus(mockSessions, now);
-  const totalMin = getWeeklyFocusTotal(mockSessions, now);
-  const completion = getCompletionRate(mockTasks);
-  const delayed = getDelayedHighPriority(mockTasks, now);
-  const window = getBestFocusWindow(mockSessions);
-  const avgSession = getAverageSessionLength(mockSessions);
-  const score = getProductivityScore(mockTasks, mockSessions, mockHabits, now);
-  const next = getNextBestAction(mockTasks, now);
+  const weekly = getWeeklyFocus(sessions, now);
+  const totalMin = getWeeklyFocusTotal(sessions, now);
+  const completion = getCompletionRate(tasks);
+  const delayed = getDelayedHighPriority(tasks, now);
+  const window = getBestFocusWindow(sessions);
+  const avgSession = getAverageSessionLength(sessions);
+  const score = getProductivityScore(tasks, sessions, habits, now);
+  const next = getNextBestAction(tasks, now);
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
   const goalPct = Math.min(100, Math.round((totalMin / (DAILY_FOCUS_GOAL_MIN * 7)) * 100));
@@ -210,7 +215,7 @@ const Analytics = () => {
           },
           {
             label: "Sessions",
-            value: `${mockSessions.length}`,
+            value: `${sessions.length}`,
             sub: "completed",
             icon: TrendingUp,
           },
@@ -319,7 +324,7 @@ const Analytics = () => {
                       Sessions this week
                     </span>
                     <span className="text-sm font-bold tabular-nums">
-                      {mockSessions.length}
+                      {sessions.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

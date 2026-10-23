@@ -1,12 +1,13 @@
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Target, Flame, Plus, Sparkles, Play, Zap } from "lucide-react";
-import { mockHabits, mockSessions, mockTasks } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { FocusTimer } from "@/components/FocusTimer";
 import { HabitRow } from "@/components/HabitRow";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTasks, useToggleTask } from "@/hooks/useTasks";
+import { useHabits } from "@/hooks/useHabits";
+import { useFocusSessions, useTodayFocusMinutes } from "@/hooks/useFocusSessions";
 
 /* ---------- Mini stat tile (secondary) ---------- */
 
@@ -33,11 +34,16 @@ const MiniStat = ({
 
 const Dashboard = () => {
   const today = new Date();
-  const [tasks, setTasks] = useState(mockTasks);
-  const todayTasks = tasks.filter((t) => t.dueDate === format(today, "yyyy-MM-dd"));
+  const { data: allTasks = [] } = useTasks();
+  const { data: habits = [] } = useHabits();
+  const { data: weeklySessions = [] } = useFocusSessions();
+  const { data: todayMin = 0 } = useTodayFocusMinutes();
+  const toggleTask = useToggleTask();
+
+  const todayStr = format(today, "yyyy-MM-dd");
+  const todayTasks = allTasks.filter((t) => t.dueDate === todayStr);
   const done = todayTasks.filter((t) => t.done).length;
   const completion = todayTasks.length ? Math.round((done / todayTasks.length) * 100) : 0;
-  const todayMin = mockSessions.slice(0, 4).reduce((s, x) => s + x.durationMin, 0);
   const focusGoal = 180;
   const focusPct = Math.min(100, Math.round((todayMin / focusGoal) * 100));
 
@@ -50,8 +56,10 @@ const Dashboard = () => {
   // Remaining tasks (excluding active)
   const remainingTasks = todayTasks.filter((t) => t.id !== activeTask?.id);
 
-  const toggle = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = (id: string) => {
+    const task = allTasks.find((t) => t.id === id);
+    if (task) toggleTask.mutate({ id, done: !task.done });
+  };
 
   return (
     <div className="px-5 lg:px-12 py-6 lg:py-10 max-w-[1400px] mx-auto animate-fade-in">
@@ -197,8 +205,8 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <MiniStat label="Streak" value="12" sub="days" icon={Flame} />
-              <MiniStat label="Sessions" value={`${mockSessions.length}`} sub="this week" icon={ArrowUpRight} />
+              <MiniStat label="Streak" value={`${habits[0]?.streak ?? 0}`} sub="days" icon={Flame} />
+              <MiniStat label="Sessions" value={`${weeklySessions.length}`} sub="this week" icon={ArrowUpRight} />
             </div>
           </motion.div>
         </div>
@@ -323,7 +331,7 @@ const Dashboard = () => {
               </a>
             </div>
             <div className="space-y-2.5">
-              {mockHabits.slice(0, 3).map((h) => (
+              {habits.slice(0, 3).map((h) => (
                 <HabitRow key={h.id} habit={h} />
               ))}
             </div>

@@ -1,11 +1,13 @@
-import { mockHabits } from "@/lib/mock-data";
 import { HabitRow } from "@/components/HabitRow";
 import { Plus, Flame, TrendingUp } from "lucide-react";
+import { useHabits } from "@/hooks/useHabits";
 
 const Habits = () => {
-  const totalStreak = mockHabits.reduce((s, h) => s + h.streak, 0);
-  const completedThisWeek = mockHabits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
-  const targetThisWeek = mockHabits.reduce((s, h) => s + h.target, 0);
+  const { data: habits = [] } = useHabits();
+  const totalStreak = habits.reduce((s, h) => s + h.streak, 0);
+  const completedThisWeek = habits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
+  const targetThisWeek = habits.reduce((s, h) => s + h.target, 0);
+  const bestStreak = habits.reduce((max, h) => Math.max(max, h.streak), 0);
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
@@ -42,12 +44,12 @@ const Habits = () => {
             <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Best streak</span>
             <Flame className="h-3.5 w-3.5 text-accent" />
           </div>
-          <div className="font-display text-2xl font-semibold">21 days</div>
+          <div className="font-display text-2xl font-semibold">{bestStreak} days</div>
         </div>
       </div>
 
       <div className="space-y-2.5">
-        {mockHabits.map((h) => <HabitRow key={h.id} habit={h} />)}
+        {habits.map((h) => <HabitRow key={h.id} habit={h} />)}
       </div>
     </div>
   );

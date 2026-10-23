@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { mockTasks, Task } from "@/lib/mock-data";
+import type { Task } from "@/lib/mock-data";
 import { TaskCard } from "@/components/TaskCard";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTasks, useToggleTask } from "@/hooks/useTasks";
 
 const filters = ["All", "Today", "High", "Done"] as const;
 type Filter = typeof filters[number];
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const { data: tasks = [] } = useTasks();
+  const toggleTask = useToggleTask();
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
 
@@ -21,7 +23,10 @@ const Tasks = () => {
     return true;
   });
 
-  const toggle = (id: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (task) toggleTask.mutate({ id, done: !task.done });
+  };
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1200px] mx-auto animate-fade-in">
