@@ -1,5 +1,5 @@
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -10,10 +10,29 @@ const CalendarPage = () => {
   const { tasks, toggleTask, toggleSubtask } = useTasks();
   const [anchor, setAnchor] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+
+  // Performance Optimization: Index tasks by dueDate into a Map in O(N) single-pass
+  // to prevent repeated O(N) filtering across calendar week days during render ticks.
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, typeof tasks>();
+    for (const task of tasks) {
+      const existing = map.get(task.dueDate);
+      if (existing) {
+        existing.push(task);
+      } else {
+        map.set(task.dueDate, [task]);
+      }
+    }
+    return map;
+  }, [tasks]);
+
+  const days = useMemo(() => {
+    const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  }, [anchor]);
+
   const selectedKey = format(selected, "yyyy-MM-dd");
-  const selectedTasks = tasks.filter((t) => t.dueDate === selectedKey);
+  const selectedTasks = tasksByDate.get(selectedKey) ?? [];
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1400px] mx-auto animate-fade-in">
@@ -40,7 +59,7 @@ const CalendarPage = () => {
         {days.map((d) => {
           const isSel = isSameDay(d, selected);
           const key = format(d, "yyyy-MM-dd");
-          const tasksForDay = tasks.filter((t) => t.dueDate === key);
+          const tasksForDay = tasksByDate.get(key) ?? [];
           return (
             <button
               key={d.toISOString()}
