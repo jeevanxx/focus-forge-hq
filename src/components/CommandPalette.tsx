@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Plus, Settings } from "lucide-react";
 import {
@@ -33,7 +33,12 @@ export const CommandPalette = () => {
     fn();
   };
 
-  const open_ = tasks.filter((t) => !t.done).slice(0, 8);
+  // Performance optimization: memoize open tasks to prevent redundant task filtering
+  // and array allocations on every AppShell re-render.
+  const open_ = useMemo(
+    () => tasks.filter((t) => !t.done).slice(0, 8),
+    [tasks]
+  );
 
   return (
     <>
