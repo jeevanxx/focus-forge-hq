@@ -78,19 +78,42 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Calculates daily focus minutes for the current week starting on Monday.
+ *
+ * Performance Optimization:
+ * Originally used O(7N) nested filtering with repeated parseISO/format calls per session for each day.
+ * Optimized to a single-pass O(N) iteration using a Map lookup indexed by timezone-safe 'yyyy-MM-dd' formatted date keys.
+ * Reduces ISO parsing and formatting calls by 7x.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-populate target week entries indexed by "yyyy-MM-dd" date key
+  const dailyFocusMap = new Map<string, DailyFocus>();
+  const weekDays: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    const item: DailyFocus = { day, date: dateKey, minutes: 0 };
+    dailyFocusMap.set(dateKey, item);
+    return item;
   });
+
+  // Single-pass O(N) accumulation over sessions
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    // Timezone-safe formatting matching parseISO(s.date)
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const entry = dailyFocusMap.get(dateKey);
+    if (entry) {
+      entry.minutes += s.durationMin;
+    }
+  }
+
+  return weekDays;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
