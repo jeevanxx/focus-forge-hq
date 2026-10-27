@@ -78,17 +78,37 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Calculates weekly focus minutes per day for the week containing `now`.
+ * Optimization: Single-pass O(N) iteration with Map lookup instead of nested O(7N) filtering/parsing.
+ * Expected performance impact: ~7x-10x execution speedup on large session lists.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+
+  // Pre-calculate date keys for the 7 days of the current week to filter efficiently
+  const dayKeys: string[] = new Array(7);
+  for (let i = 0; i < 7; i++) {
+    dayKeys[i] = format(addDays(weekStart, i), "yyyy-MM-dd");
+  }
+  const weekKeySet = new Set(dayKeys);
+
+  // Single-pass O(N) aggregation into a Map for local timezone date keys
+  const minutesByDate = new Map<string, number>();
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const key = format(parseISO(s.date), "yyyy-MM-dd");
+    if (weekKeySet.has(key)) {
+      minutesByDate.set(key, (minutesByDate.get(key) ?? 0) + s.durationMin);
+    }
+  }
+
   return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
+    const dateKey = dayKeys[i];
+    const minutes = minutesByDate.get(dateKey) ?? 0;
     return { day, date: dateKey, minutes };
   });
 };
