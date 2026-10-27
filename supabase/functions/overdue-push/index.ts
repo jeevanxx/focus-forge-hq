@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { isRequestAuthorized } from "./auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -9,12 +10,25 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+
+    const db = createClient(supabaseUrl!, serviceRoleKey!);
+
+    const isAuthorized = await isRequestAuthorized(req, serviceRoleKey, async (token) => {
+      const { data } = await db.auth.getUser(token);
+      return !!data?.user;
+    });
+
+    if (!isAuthorized) {
+      return json({ error: "Unauthorized access" }, 401);
+    }
+
     webpush.setVapidDetails(
       "mailto:notifications@focusforge.app",
       Deno.env.get("VAPID_PUBLIC_KEY")!,
       Deno.env.get("VAPID_PRIVATE_KEY")!,
     );
-    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const today = new Date().toISOString().slice(0, 10);
 
     const { data: subs, error: subErr } = await db.from("push_subscriptions").select("*");
@@ -56,10 +70,11 @@ Deno.serve(async (req) => {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
           sent++;
           userSent++;
-        } catch (e: any) {
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
+        } catch (e: unknown) {
+          const err = e as { statusCode?: number; body?: unknown };
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
             await db.from("push_subscriptions").delete().eq("id", s.id);
-          } else console.error("push failed", e?.statusCode, e?.body);
+          } else console.error("push failed", err?.statusCode, err?.body);
         }
       }
       // Only mark tasks as notified when an alert was actually delivered,
