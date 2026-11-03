@@ -29,6 +29,26 @@ function useChart() {
   return context;
 }
 
+// Sanitization helpers to prevent CSS and HTML injection via chart IDs, keys, or colors
+function sanitizeId(id: string): string {
+  if (typeof id !== "string") return "";
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeKey(key: string): string {
+  if (typeof key !== "string") return "";
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeColor(color: string): string {
+  if (typeof color !== "string") return "";
+  // Block url() constructs to prevent SSRF and tracking pixel leaks
+  if (/url\s*\(/i.test(color)) return "";
+  // Block critical CSS/HTML breakout characters
+  if (/[;{}[\]"'<>\\]/.test(color)) return "";
+  return color;
+}
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -37,7 +57,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const rawId = id || uniqueId.replace(/:/g, "");
+  const chartId = `chart-${sanitizeId(rawId)}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -59,6 +80,7 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const sanitizedId = sanitizeId(id);
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
@@ -71,12 +93,16 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${sanitizedId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const cleanKey = sanitizeKey(key);
+    if (!cleanKey) return null;
+    const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const color = rawColor ? sanitizeColor(rawColor) : null;
+    return color ? `  --color-${cleanKey}: ${color};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
