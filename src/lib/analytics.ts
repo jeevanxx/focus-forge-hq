@@ -78,19 +78,44 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Calculates the weekly focus minutes per day for the week of the given date.
+ * Optimized to run in O(N) time with O(1) space complexity relative to the output list
+ * by pre-filling the 7 days of the week and aggregating durations using a single-pass hash map lookup.
+ * This avoids nested filtering and redundant `parseISO` / `format` calls.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-fill results array with zero-initialized entries for all 7 days of the week
+  const dailyFocusMap = new Map<string, DailyFocus>();
+  const results: DailyFocus[] = [];
+
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    const daily: DailyFocus = {
+      day: WEEK_LABELS[i],
+      date: dateKey,
+      minutes: 0,
+    };
+    results.push(daily);
+    dailyFocusMap.set(dateKey, daily);
+  }
+
+  // Aggregate focus session durations in a single pass O(N)
+  for (const s of sessions) {
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const daily = dailyFocusMap.get(dateKey);
+    if (daily) {
+      daily.minutes += s.durationMin;
+    }
+  }
+
+  return results;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
