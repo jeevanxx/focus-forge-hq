@@ -83,18 +83,45 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const buckets = new Map<string, number>();
+  const result: DailyFocus[] = [];
+
+  // Initialize buckets for each day of the week
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    buckets.set(dateKey, 0);
+    result.push({ day: WEEK_LABELS[i], date: dateKey, minutes: 0 });
+  }
+
+  // Single-pass: group sessions into daily buckets
+  // This is O(N) instead of O(7*N) and minimizes expensive parseISO/format calls
+  for (const s of sessions) {
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const current = buckets.get(dateKey);
+    if (current !== undefined) {
+      buckets.set(dateKey, current + s.durationMin);
+    }
+  }
+
+  // Map bucketed values back to the structured result
+  return result.map((d) => ({ ...d, minutes: buckets.get(d.date) || 0 }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = addDays(weekStart, 7);
+
+  // Direct single-pass sum avoids the overhead of creating daily breakdown objects
+  return sessions.reduce((sum, s) => {
+    const d = parseISO(s.date);
+    if (d >= weekStart && d < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
