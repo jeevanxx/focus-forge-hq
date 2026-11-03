@@ -1,19 +1,52 @@
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
+import type { Task } from "@/lib/types";
 
 const CalendarPage = () => {
   const { tasks, toggleTask, toggleSubtask } = useTasks();
   const [anchor, setAnchor] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
-  const selectedKey = format(selected, "yyyy-MM-dd");
-  const selectedTasks = tasks.filter((t) => t.dueDate === selectedKey);
+
+  // Performance Optimization: Group tasks by dueDate in a single pass O(N) Map
+  // instead of repeated O(8N) array filters across all calendar days on every render.
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const t of tasks) {
+      if (!t.dueDate) continue;
+      const existing = map.get(t.dueDate);
+      if (existing) {
+        existing.push(t);
+      } else {
+        map.set(t.dueDate, [t]);
+      }
+    }
+    return map;
+  }, [tasks]);
+
+  // Memoize week day date boundaries based on anchor date
+  const days = useMemo(() => {
+    const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
+    return Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+  }, [anchor]);
+
+  const selectedKey = useMemo(() => format(selected, "yyyy-MM-dd"), [selected]);
+  const selectedTasks = useMemo(() => tasksByDate.get(selectedKey) ?? [], [tasksByDate, selectedKey]);
+
+  // Memoize workload statistics for selected day
+  const workload = useMemo(() => {
+    const open = selectedTasks.filter((t) => !t.done);
+    const mins = open.reduce((s, t) => s + (t.estimateMin ?? 25), 0);
+    return {
+      openCount: open.length,
+      hours: Math.floor(mins / 60),
+      minutes: mins % 60,
+    };
+  }, [selectedTasks]);
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1400px] mx-auto animate-fade-in">
@@ -40,7 +73,7 @@ const CalendarPage = () => {
         {days.map((d) => {
           const isSel = isSameDay(d, selected);
           const key = format(d, "yyyy-MM-dd");
-          const tasksForDay = tasks.filter((t) => t.dueDate === key);
+          const tasksForDay = tasksByDate.get(key) ?? [];
           return (
             <button
               key={d.toISOString()}
@@ -95,24 +128,18 @@ const CalendarPage = () => {
           <div className="p-5 rounded-2xl border border-border bg-gradient-card">
             <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-1.5">Workload</div>
             <h3 className="font-display text-lg font-semibold mb-3">Time needed</h3>
-            {(() => {
-              const open = selectedTasks.filter((t) => !t.done);
-              const mins = open.reduce((s, t) => s + (t.estimateMin ?? 25), 0);
-              const h = Math.floor(mins / 60);
-              const m = mins % 60;
-              return open.length ? (
-                <div>
-                  <div className="font-display text-3xl font-bold tracking-tight">
-                    {h ? `${h}h ` : ""}{m}m
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    across {open.length} open {open.length === 1 ? "task" : "tasks"}
-                  </p>
+            {workload.openCount ? (
+              <div>
+                <div className="font-display text-3xl font-bold tracking-tight">
+                  {workload.hours ? `${workload.hours}h ` : ""}{workload.minutes}m
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No open tasks for this day.</p>
-              );
-            })()}
+                <p className="text-xs text-muted-foreground mt-1">
+                  across {workload.openCount} open {workload.openCount === 1 ? "task" : "tasks"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No open tasks for this day.</p>
+            )}
           </div>
         </div>
       </div>
