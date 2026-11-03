@@ -1,0 +1,4 @@
+## 2026-06-29 - Securing dynamic CSS injection in Chart component
+**Vulnerability:** Potential CSS injection via `dangerouslySetInnerHTML` in `ChartStyle`. Unsanitized chart IDs, configuration keys, and color values could be used to break out of CSS rules and inject arbitrary styles.
+**Learning:** Shared UI components that generate dynamic styles or use dangerous sinks must implement internal sanitization to provide defense-in-depth, as they cannot guarantee that parent components will always provide safe inputs.
+**Prevention:** Use dedicated sanitization helpers (`sanitizeId`, `sanitizeKey`, `sanitizeValue`) to restrict dynamic inputs to safe character sets and block characters used for rule breakout (e.g., `; { } [ ] " < > \`). Always use quoted attribute selectors in generated CSS for extra robustness.
