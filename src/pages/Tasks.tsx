@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -19,14 +19,31 @@ const Tasks = () => {
   const [editing, setEditing] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const filtered = tasks.filter((t) => {
-    if (query && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
-    if (filter === "Today") return t.dueDate === today;
-    if (filter === "High") return t.priority === "high";
-    if (filter === "Done") return t.done;
-    return true;
-  });
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Memoize filtered task calculation to avoid re-evaluating on unrelated renders
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return tasks.filter((t) => {
+      if (q && !t.title.toLowerCase().includes(q)) return false;
+      if (filter === "Today") return t.dueDate === today;
+      if (filter === "High") return t.priority === "high";
+      if (filter === "Done") return t.done;
+      return true;
+    });
+  }, [tasks, query, filter, today]);
+
+  // Stable event handlers to preserve TaskCard memoization benefits
+  const handleToggle = useCallback((id: string) => toggleTask.mutate(id), [toggleTask]);
+  const handleToggleSubtask = useCallback(
+    (taskId: string, subId: string) => toggleSubtask.mutate({ taskId, subId }),
+    [toggleSubtask]
+  );
+  const handleEdit = useCallback((task: Task) => setEditing(task), []);
+  const handleDelete = useCallback(
+    (id: string) => setDeleting(tasks.find((x) => x.id === id) ?? null),
+    [tasks]
+  );
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -90,10 +107,10 @@ const Tasks = () => {
           <TaskCard
             key={t.id}
             task={t}
-            onToggle={(id) => toggleTask.mutate(id)}
-              onToggleSubtask={(taskId, subId) => toggleSubtask.mutate({ taskId, subId })}
-            onEdit={(task) => setEditing(task)}
-            onDelete={(id) => setDeleting(tasks.find((x) => x.id === id) ?? null)}
+            onToggle={handleToggle}
+            onToggleSubtask={handleToggleSubtask}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
         ))}
         {!isLoading && !filtered.length && (
