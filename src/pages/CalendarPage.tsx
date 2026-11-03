@@ -1,19 +1,40 @@
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TaskCard } from "@/components/TaskCard";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
+import type { Task } from "@/lib/types";
 
 const CalendarPage = () => {
   const { tasks, toggleTask, toggleSubtask } = useTasks();
   const [anchor, setAnchor] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+
+  // Memoize weekStart and 7 days array to avoid recalculation on unrelated renders
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 1 }), [anchor]);
+  const days = useMemo(() => Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i)), [weekStart]);
+
+  // Single-pass O(N) indexing of tasks by dueDate using useMemo to optimize calendar task lookups from O(8N) repeated filters to O(1) Map lookups
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (t.dueDate) {
+        const list = map.get(t.dueDate);
+        if (list) {
+          list.push(t);
+        } else {
+          map.set(t.dueDate, [t]);
+        }
+      }
+    }
+    return map;
+  }, [tasks]);
+
   const selectedKey = format(selected, "yyyy-MM-dd");
-  const selectedTasks = tasks.filter((t) => t.dueDate === selectedKey);
+  const selectedTasks = tasksByDate.get(selectedKey) ?? [];
 
   return (
     <div className="px-5 lg:px-12 py-8 lg:py-12 max-w-[1400px] mx-auto animate-fade-in">
@@ -40,7 +61,7 @@ const CalendarPage = () => {
         {days.map((d) => {
           const isSel = isSameDay(d, selected);
           const key = format(d, "yyyy-MM-dd");
-          const tasksForDay = tasks.filter((t) => t.dueDate === key);
+          const tasksForDay = tasksByDate.get(key) ?? [];
           return (
             <button
               key={d.toISOString()}
