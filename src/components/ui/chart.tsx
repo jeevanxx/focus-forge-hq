@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${sanitizeId(id || uniqueId.replace(/:/g, ""))}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +65,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const safeId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = sanitizeKey(key);
+    const safeColor = sanitizeColor(color);
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
@@ -86,6 +90,32 @@ ${colorConfig
     />
   );
 };
+
+/**
+ * Sanitizes an ID for use in a data-chart attribute and CSS selector.
+ * Allows only alphanumeric characters, dashes, and underscores.
+ */
+function sanitizeId(id: string) {
+  return id.replace(/[^a-zA-Z0-9-_]/g, "");
+}
+
+/**
+ * Sanitizes a configuration key for use as a CSS variable name.
+ * Prevents characters that could break out of a CSS block.
+ */
+function sanitizeKey(key: string) {
+  return key.replace(/[^a-zA-Z0-9-_]/g, "");
+}
+
+/**
+ * Sanitizes a color value for use in CSS.
+ * Blocks characters used for CSS injection like ; { } [ ] " < > \
+ * Allows spaces to support modern CSS color syntax (e.g., oklch, oklab).
+ */
+function sanitizeColor(color?: string) {
+  if (!color) return null;
+  return color.replace(/[;{}[\]"<>\\@]/g, "");
+}
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
