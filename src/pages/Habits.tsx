@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { HabitRow } from "@/components/HabitRow";
 import { NewHabitDialog } from "@/components/NewHabitDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -13,10 +13,26 @@ const Habits = () => {
   const [editing, setEditing] = useState<Habit | null>(null);
   const [deleting, setDeleting] = useState<Habit | null>(null);
 
-  const totalStreak = habits.reduce((s, h) => s + h.streak, 0);
-  const completedThisWeek = habits.reduce((s, h) => s + h.history.filter(Boolean).length, 0);
-  const targetThisWeek = habits.reduce((s, h) => s + h.target, 0);
-  const bestStreak = habits.reduce((m, h) => Math.max(m, h.streak), 0);
+  // Performance Optimization: Memoize consolidated habit statistics in a single pass.
+  // Avoids recalculating stats across 4 separate reduce passes and array allocations
+  // on unrelated component re-renders (such as modal open/close or edit/delete actions).
+  const { totalStreak, completedThisWeek, targetThisWeek, bestStreak } = useMemo(() => {
+    let totalStreak = 0;
+    let completedThisWeek = 0;
+    let targetThisWeek = 0;
+    let bestStreak = 0;
+
+    for (const h of habits) {
+      totalStreak += h.streak;
+      targetThisWeek += h.target;
+      if (h.streak > bestStreak) bestStreak = h.streak;
+      for (const done of h.history) {
+        if (done) completedThisWeek++;
+      }
+    }
+
+    return { totalStreak, completedThisWeek, targetThisWeek, bestStreak };
+  }, [habits]);
 
   const confirmDelete = async () => {
     if (!deleting) return;
