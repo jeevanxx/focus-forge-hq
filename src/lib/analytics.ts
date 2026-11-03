@@ -83,18 +83,50 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimization: Single-pass iteration O(N) instead of O(N * W)
+  // We use a Map to aggregate minutes by date key to avoid nested filtering.
+  // We use parseISO and format to maintain timezone consistency with original logic.
+  const dayMap = new Map<string, number>();
+
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const sessionDate = parseISO(s.date);
+
+    // Boundary check using Date objects for correctness across timezones
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dateKey = format(sessionDate, "yyyy-MM-dd");
+      dayMap.set(dateKey, (dayMap.get(dateKey) || 0) + s.durationMin);
+    }
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: dateKey,
+      minutes: dayMap.get(dateKey) || 0
+    };
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimization: Direct single-pass sum to avoid array allocation from getWeeklyFocus
+  let total = 0;
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      total += s.durationMin;
+    }
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 
