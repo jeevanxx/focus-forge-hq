@@ -1,0 +1,3 @@
+## 2025-03-10 - O(N) Hash Map Lookup for Timezone-Aware Weekly Analytics
+**Learning:** `getWeeklyFocus` originally iterated through all sessions 7 times (once per day of the week), executing expensive ISO parsing (`parseISO`) and string formatting (`format`) 7N times. Refactoring to pre-fill a Map of the 7 week days and doing a single-pass O(N) iteration over sessions reduced date operations from 7N to N, speeding execution up by ~8x (~968ms to ~117ms for 14,000 sessions).
+**Action:** When computing date-bucketed aggregations, pre-populate a lookup structure for the target buckets and make a single pass over the input items.
