@@ -1,0 +1,4 @@
+## 2025-03-03 - Dynamic Style Tag CSS Injection in Chart UI
+**Vulnerability:** Dynamic properties (chart IDs, configuration keys, and CSS color values) were directly interpolated into a `<style>` tag using `dangerouslySetInnerHTML` without validation, leading to potential CSS injection and HTML-injection/XSS.
+**Learning:** React automatically handles escaping for HTML attributes, but content inside `dangerouslySetInnerHTML` is raw and unescaped. Untrusted inputs placed in dynamic `<style>` tags can break out of selectors and rules using characters like `;`, `{`, `}`, `[`, `]`, `<` and quotes.
+**Prevention:** Implement lightweight, unexported sanitization helpers for component IDs, style keys, and color values. Whitelist alphanumeric/hyphen/underscore characters for IDs and property keys, and strip critical syntax breakout characters from color values while preserving functional parenthesis `()` for CSS color functions like `hsl()` and `rgb()`.
