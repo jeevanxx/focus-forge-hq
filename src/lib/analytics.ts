@@ -78,19 +78,44 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+/**
+ * Calculates weekly focus minutes for each day of the week.
+ *
+ * Performance Optimization:
+ * Instead of nested O(7N) iteration with redundant parseISO and format operations
+ * inside .filter() for every day of the week, this function initializes the 7 daily
+ * buckets in O(1) and performs a single-pass O(N) iteration over sessions.
+ * This reduces date formatting overhead by ~7x while preserving local timezone alignment.
+ */
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+
+  // Pre-fill daily focus results for Mon..Sun
+  const result: DailyFocus[] = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, date: format(date, "yyyy-MM-dd"), minutes: 0 };
   });
+
+  // Map "yyyy-MM-dd" date strings to array indices for O(1) bucketing
+  const dateIndexMap = new Map<string, number>();
+  for (let i = 0; i < result.length; i++) {
+    dateIndexMap.set(result[i].date, i);
+  }
+
+  // Single-pass O(N) session aggregation
+  for (let i = 0; i < sessions.length; i++) {
+    const session = sessions[i];
+    const sDateKey = format(parseISO(session.date), "yyyy-MM-dd");
+    const idx = dateIndexMap.get(sDateKey);
+    if (idx !== undefined) {
+      result[idx].minutes += session.durationMin;
+    }
+  }
+
+  return result;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
