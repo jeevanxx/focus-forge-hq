@@ -29,6 +29,30 @@ function useChart() {
   return context;
 }
 
+/**
+ * Sanitizes the element ID to prevent CSS style/DOM breakout.
+ * Only allows alphanumeric characters, dashes, and underscores.
+ */
+const sanitizeId = (id: string) => {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+/**
+ * Sanitizes CSS custom property keys to prevent arbitrary CSS rule injections.
+ * Only allows alphanumeric characters, dashes, and underscores.
+ */
+const sanitizeKey = (key: string) => {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+/**
+ * Sanitizes CSS color/variable values to block critical breakout characters
+ * (; { } [ ] " ' < > \ `) while preserving standard color syntax (like hsl(), rgb(), var()).
+ */
+const sanitizeColor = (color: string) => {
+  return color.replace(/[;{}[\]"<>`\\]/g, "").replace(/'/g, "");
+};
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -37,7 +61,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const rawChartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(rawChartId);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +90,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const sanitizedId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${sanitizedId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const sanitizedKey = sanitizeKey(key);
+    const sanitizedColor = color ? sanitizeColor(color) : null;
+    return sanitizedColor ? `  --color-${sanitizedKey}: ${sanitizedColor};` : null;
   })
   .join("\n")}
 }
