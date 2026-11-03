@@ -1,0 +1,3 @@
+## 2025-05-14 - Timezone-Safe Single-Pass Map Lookups for Date Aggregations
+**Learning:** Filtering arrays nested inside date iteration constructs (`WEEK_LABELS.map(...)`) creates an $O(7N)$ complexity bottleneck where $N$ focus sessions perform $7 \times N$ expensive date conversions (`parseISO` and `format`). Replacing nested array filters with a pre-indexed Map map lookup allows computing date aggregates in $O(N)$ time with 1 pass.
+**Action:** Always prefer single-pass Map lookups for date-range aggregations over nested `.filter(...)` loops, while using `parseISO` + `format(date, 'yyyy-MM-dd')` to preserve local timezone alignment.
