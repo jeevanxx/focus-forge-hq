@@ -83,18 +83,52 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekEnd = addDays(weekStart, 7);
+
+  // Pre-populate Map with 0s for all 7 days of the week
+  const dailyMap = new Map<string, number>();
+  const dayMetadata: Array<{ day: (typeof WEEK_LABELS)[number]; date: string }> = [];
+
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    dailyMap.set(dateKey, 0);
+    dayMetadata.push({ day: WEEK_LABELS[i], date: dateKey });
+  }
+
+  // Single pass optimization (O(N)): aggregate only sessions within the week range
+  for (const s of sessions) {
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      // We use format() to ensure the key matches the local timezone used in dayMetadata.
+      // While slice(0, 10) is faster, it extracts UTC date which may cause mismatches.
+      const dateKey = format(sessionDate, "yyyy-MM-dd");
+      dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + s.durationMin);
+    }
+  }
+
+  return dayMetadata.map((meta) => ({
+    ...meta,
+    minutes: dailyMap.get(meta.date) || 0,
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Single pass O(N) sum to avoid creating intermediate arrays or re-looping
+  return sessions.reduce((sum, s) => {
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
