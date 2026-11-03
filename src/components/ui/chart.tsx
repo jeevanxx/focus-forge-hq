@@ -37,7 +37,10 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = React.useMemo(
+    () => `chart-${id || uniqueId.replace(/:/g, "")}`.replace(/[^a-zA-Z0-9-_:.]/g, ""),
+    [id, uniqueId],
+  );
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -59,7 +62,10 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
+  const colorConfig = React.useMemo(
+    () => Object.entries(config).filter(([_, config]) => config.theme || config.color),
+    [config],
+  );
 
   if (!colorConfig.length) {
     return null;
@@ -69,18 +75,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+          .map(([theme, prefix]) => {
+            const chartId = id.replace(/[^a-zA-Z0-9-_:.]/g, "");
+            return `
+${prefix} [data-chart="${chartId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color
+      ? `  --color-${key.replace(/[^a-zA-Z0-9-_]/g, "")}: ${color.replace(/[;{}<>]/g, " ")};`
+      : null;
   })
   .join("\n")}
 }
-`,
-          )
+`;
+          })
           .join("\n"),
       }}
     />
