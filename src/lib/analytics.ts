@@ -78,19 +78,36 @@ const isToday = (iso: string, now: Date): boolean => {
 
 // ---------- 1. Weekly focus minutes ----------
 
+// Single-pass O(N) aggregation with pre-filled hash lookup.
+// Replaces previous nested O(7N) array filtering and 7N ISO date parsing calls.
 export const getWeeklyFocus = (
   sessions: FocusSession[],
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const dayMap = new Map<string, DailyFocus>();
+  const result: DailyFocus[] = [];
+
+  // Pre-fill target week days array and lookup map (O(1))
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+    const item: DailyFocus = { day: WEEK_LABELS[i], date: dateKey, minutes: 0 };
+    dayMap.set(dateKey, item);
+    result.push(item);
+  }
+
+  // Single-pass iteration O(N) over focus sessions with timezone-consistent date lookups
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const day = dayMap.get(dateKey);
+    if (day) {
+      day.minutes += s.durationMin;
+    }
+  }
+
+  return result;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
