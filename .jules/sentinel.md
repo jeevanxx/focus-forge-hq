@@ -1,0 +1,4 @@
+## 2026-10-23 - Missing Authentication on Background Edge Functions
+**Vulnerability:** The `overdue-push` Supabase Edge Function lacked request authorization checks, allowing unauthenticated callers to execute web push notifications across all users and trigger database queries using the service role key.
+**Learning:** Background or scheduled Edge Functions (such as cron jobs) often utilize elevated privileges (`SUPABASE_SERVICE_ROLE_KEY`) to query multi-tenant data, but without explicit authorization header validation on the endpoint itself, public requests can trigger denial-of-service, third-party notification spam, or resource exhaustion.
+**Prevention:** Always validate incoming `Authorization` headers in Edge Functions against `SUPABASE_SERVICE_ROLE_KEY` or verify user session tokens with `auth.getUser()` before executing operations with elevated service-role privileges.
