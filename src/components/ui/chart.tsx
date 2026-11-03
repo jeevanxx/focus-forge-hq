@@ -29,6 +29,23 @@ function useChart() {
   return context;
 }
 
+function sanitizeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeColor(color: string): string {
+  // Filter out url(...) constructs to block CSS tracking pixel / SSRF leaks
+  if (/url\s*\(/i.test(color)) {
+    return "";
+  }
+  // Strip critical CSS breakout characters
+  return color.replace(/[;{}[\]"'<>\\]/g, "");
+}
+
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -37,7 +54,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${sanitizeId(id || uniqueId.replace(/:/g, ""))}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,18 +82,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const cleanId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${cleanId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const color = rawColor ? sanitizeColor(rawColor) : null;
+    const cleanKey = sanitizeKey(key);
+    return color ? `  --color-${cleanKey}: ${color};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
