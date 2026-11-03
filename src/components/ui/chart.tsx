@@ -65,22 +65,27 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const chartId = React.useMemo(() => id.replace(/[^a-zA-Z0-9-_:.]/g, ""), [id]);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+          .map(([theme, prefix]) => {
+            return `
+${prefix} [data-chart="${chartId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    // Sanitize the key and color value to prevent CSS injection.
+    const safeKey = key.replace(/[^a-zA-Z0-9-_]/g, "");
+    const safeColor = color?.replace(/[;{}<>\\]/g, " ");
+    return color ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
-`,
-          )
+`;
+          })
           .join("\n"),
       }}
     />
