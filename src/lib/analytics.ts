@@ -83,12 +83,20 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+
+  // Performance Optimization: Single-pass O(N) aggregation map instead of O(7N) nested filtering.
+  // Group minutes by timezone-safe formatted ISO date key "yyyy-MM-dd".
+  const minutesByDate = new Map<string, number>();
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    minutesByDate.set(dateKey, (minutesByDate.get(dateKey) ?? 0) + s.durationMin);
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
+    const minutes = minutesByDate.get(dateKey) ?? 0;
     return { day, date: dateKey, minutes };
   });
 };
