@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${(id || uniqueId).replace(/:/g, "")}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +65,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitizing inputs for the style tag to prevent CSS injection.
+  // We use an allowlist for the ID and keys, and block characters that could break out of a CSS rule for values.
+  const safeId = id.replace(/[^a-zA-Z0-9-_:.]/g, "");
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = key.replace(/[^a-zA-Z0-9-_]/g, "");
+    const safeColor = typeof color === "string" ? color.replace(/[;{}<>\\]/g, "") : color;
+    return color ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
