@@ -3,6 +3,22 @@ import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
 
+// Helper to sanitize chart IDs and prevent breakout/injection
+const sanitizeId = (id: string): string => {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+// Helper to sanitize dynamic keys to prevent invalid CSS properties or breakout
+const sanitizeKey = (key: string): string => {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+// Helper to sanitize dynamic color values to block CSS rules breakout
+const sanitizeColor = (color: string): string => {
+  // Disallow common CSS rule breakout characters: ;, {, }, [, ], ", ', <, >, \, @, :
+  return color.replace(/[;{}[\]"'<>\\]|@|:/g, "");
+};
+
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -37,7 +53,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const rawChartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(rawChartId);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,17 +82,21 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const cleanId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${cleanId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const cleanKey = sanitizeKey(key);
+    const cleanColor = color ? sanitizeColor(color) : null;
+    return cleanColor ? `  --color-${cleanKey}: ${cleanColor};` : null;
   })
   .join("\n")}
 }
