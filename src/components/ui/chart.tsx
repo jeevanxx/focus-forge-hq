@@ -3,6 +3,25 @@ import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
 
+// Helper functions for sanitizing CSS selectors, keys, and values to prevent CSS and HTML injection vulnerabilities
+const sanitizeId = (id: string): string => {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+const sanitizeKey = (key: string): string => {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+};
+
+const sanitizeColor = (color: string): string => {
+  // Strip url() constructs to prevent SSRF and tracking pixel exfiltration
+  let clean = color.replace(/url\([^)]*\)/gi, "");
+  // Strip comments
+  clean = clean.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Strip characters that allow CSS and HTML breakouts, including slashes and backslashes
+  clean = clean.replace(/[;{}"'`<>/\\*]/g, "").replace(/[[\]]/g, "");
+  return clean.trim();
+};
+
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
@@ -37,7 +56,8 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const rawId = id || uniqueId.replace(/:/g, "");
+  const chartId = `chart-${sanitizeId(rawId)}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -65,18 +85,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const cleanId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${cleanId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
+    const cleanKey = sanitizeKey(key);
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const cleanColor = color ? sanitizeColor(color) : null;
+    return cleanColor && cleanKey ? `  --color-${cleanKey}: ${cleanColor};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,

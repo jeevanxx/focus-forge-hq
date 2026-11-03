@@ -1,0 +1,4 @@
+## 2025-05-18 - CSS Injection Sanitization in Recharts/Shadcn Chart Components
+**Vulnerability:** Unsanitized `id`, config `key`s, and `color` values passed into `ChartStyle` were directly rendered inside a `<style>` tag via `dangerouslySetInnerHTML`, allowing selector breakouts, CSS rule injection, and SSRF/tracking via `url(...)` constructs.
+**Learning:** In UI libraries generating dynamic `<style>` blocks (like Shadcn/Recharts `ChartStyle`), user or dynamically configured keys and colors must be strictly sanitized before insertion into CSS custom properties or attribute selectors.
+**Prevention:** Apply `sanitizeId` and `sanitizeKey` to restrict identifiers to `[a-zA-Z0-9_-]`, and use `sanitizeColor` to strip CSS breakout characters (`;`, `{`, `}`, `[`, `]`, `"`, `'`, `<`, `>`, `/`, `\`, `*`) and `url()` constructs.
