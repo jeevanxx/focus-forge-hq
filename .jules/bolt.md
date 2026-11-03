@@ -1,0 +1,3 @@
+## 2025-05-14 - TimeZone-Aware O(N) Session Aggregation Optimization
+**Learning:** Nested array filtering (`filter` + `reduce`) over sessions across 7 days of the week resulted in 7xN string parse and formatting operations (`parseISO` and `format`). Replacing nested filtering with an upfront `Map` lookup and single-pass iteration reduced date formatting operations by ~85% while preserving timezone-safe ISO date handling.
+**Action:** When aggregating list items into fixed date buckets (e.g. days of the week), pre-build a `Map` of target date keys to array indices and perform a single pass over the dataset instead of filtering the array repeatedly.
