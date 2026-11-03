@@ -1,0 +1,3 @@
+## 2024-03-20 - Timezone Sensitivity in Performance Optimizations
+**Learning:** Pure ISO string comparisons for date filtering are extremely fast (~60x faster than `parseISO`) but operate in UTC. When the application logic requires grouping by local calendar day (e.g., in analytics dashboards), string comparison against `toISOString()` can lead to logic regressions where sessions near the day/week boundaries are miscategorized depending on the system's timezone.
+**Action:** In timezone-sensitive contexts, call `parseISO` once per iteration and use numeric timestamp comparisons (`getTime()`) for boundary checks. Only perform expensive `format()` or calendar operations if the session is confirmed to be within the required range.
