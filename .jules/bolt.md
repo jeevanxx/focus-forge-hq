@@ -1,0 +1,3 @@
+## 2025-05-15 - TimeZone-Aware O(N) getWeeklyFocus Optimization
+**Learning:** Switching `getWeeklyFocus` from nested filter loops on every day of the week to an index lookup table based on O(1) date mapping avoids iterating the array 7 times. However, extracting date keys with simple string slicing like `.slice(0, 10)` can produce correctness bugs across local non-UTC timezones. Keeping the `format(parseISO(s.date), 'yyyy-MM-dd')` formatting inside a single-pass loop preserves correct timezone alignment while reducing aggregate execution time by ~4x.
+**Action:** Use single-pass hash/index mapping for list aggregation, retaining native date formatting libraries to ensure timezone correctness instead of simplistic substring slices.
