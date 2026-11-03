@@ -1,0 +1,4 @@
+## 2025-03-05 - Chart Style and Layout Sanitization
+**Vulnerability:** CSS injection and HTML tag breakout via dangerouslySetInnerHTML in custom Shadcn/Recharts `<style>` element.
+**Learning:** Adding sanitization functions directly to UI files (such as `src/components/ui/chart.tsx`) must avoid exporting helper functions to prevent Fast Refresh lint warnings. Testing them requires rendering the main component (or exporting the internal style component if standard) instead of importing helpers directly. Furthermore, testing components wrapping Recharts' `ResponsiveContainer` triggers `ReferenceError: ResizeObserver is not defined` in JSDOM, which must be mocked locally in Vitest suites.
+**Prevention:** Always declare sanitization helper functions inside UI components as local non-exported constants, and mock JSDOM's missing `ResizeObserver` when performing component-level unit/integration tests of Recharts components.
