@@ -83,18 +83,53 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Initialize minutes for each day of the current week
+  const minutesByDate: Record<string, number> = {};
+  const dateKeys: string[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const dateKey = format(addDays(weekStart, i), "yyyy-MM-dd");
+    minutesByDate[dateKey] = 0;
+    dateKeys.push(dateKey);
+  }
+
+  // Single pass optimization: O(N) instead of O(N * 7)
+  // We also avoid repeated format/parseISO calls inside the nested filter
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const dateKey = format(sessionDate, "yyyy-MM-dd");
+      if (dateKey in minutesByDate) {
+        minutesByDate[dateKey] += session.durationMin;
+      }
+    }
+  }
+
+  return WEEK_LABELS.map((day, i) => ({
+    day,
+    date: dateKeys[i],
+    minutes: minutesByDate[dateKeys[i]],
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Optimized single-pass total calculation
+  return sessions.reduce((total, s) => {
+    const date = parseISO(s.date);
+    if (date >= weekStart && date < weekEnd) {
+      return total + s.durationMin;
+    }
+    return total;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
