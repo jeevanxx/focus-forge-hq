@@ -1,0 +1,4 @@
+## 2025-05-24 - Chart CSS Injection and SSRF/Pixel Leak Sanitization
+**Vulnerability:** Unsanitized chart container IDs, config keys, and color values were directly interpolated into a dynamic `<style>` tag via `dangerouslySetInnerHTML` in `ChartStyle` (`src/components/ui/chart.tsx`), allowing CSS rule breakouts and tracking pixel leaks (`url(...)`).
+**Learning:** React component libraries (like Shadcn UI Charts) that dynamically build CSS rules with custom property names (`--color-${key}`) inside `<style>` blocks can be exploited if properties or IDs are user-influenced or dynamic.
+**Prevention:** Always sanitize dynamic identifiers to alphanumeric/dashes/underscores, strip CSS comment markers (`/*`, `*/`) and breakout characters (`; { } [ ] " ' < > \ :`), and explicitly filter out CSS `url()` functions before placing values into `dangerouslySetInnerHTML`.
