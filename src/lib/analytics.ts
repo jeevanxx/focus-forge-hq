@@ -83,18 +83,48 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Pre-calculate date keys for the week to avoid repeated format calls
+  const dateKeys = WEEK_LABELS.map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
+  const dayMinutes = new Array(7).fill(0);
+  const dateToIndex = new Map<string, number>();
+  dateKeys.forEach((key, i) => dateToIndex.set(key, i));
+
+  // Single pass O(N) over sessions with early range filtering.
+  // Optimized from O(7N) with repeated format/parseISO calls.
+  for (const session of sessions) {
+    const sessionDate = parseISO(session.date);
+    // Early date-range check is significantly faster than string formatting
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      const sessionDateKey = format(sessionDate, "yyyy-MM-dd");
+      const dayIndex = dateToIndex.get(sessionDateKey);
+      if (dayIndex !== undefined) {
+        dayMinutes[dayIndex] += session.durationMin;
+      }
+    }
+  }
+
+  return WEEK_LABELS.map((day, i) => ({
+    day,
+    date: dateKeys[i],
+    minutes: dayMinutes[i],
+  }));
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  // Single pass O(N) sum for total minutes in the week, avoiding intermediate objects
+  return sessions.reduce((sum, s) => {
+    const sessionDate = parseISO(s.date);
+    if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
