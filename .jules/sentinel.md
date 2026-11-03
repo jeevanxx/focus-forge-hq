@@ -1,0 +1,4 @@
+## 2025-05-22 - CSS Injection in Chart component
+**Vulnerability:** The `ChartStyle` component in `src/components/ui/chart.tsx` used `dangerouslySetInnerHTML` to inject CSS rules based on component props (`id` and `config` keys/colors). These props were not sanitized, allowing an attacker to inject arbitrary CSS by providing malicious strings.
+**Learning:** Even internal UI components can be vectors for injection if they bypass React's default escaping (e.g., via `dangerouslySetInnerHTML`) and use user-influenced or developer-provided data to build raw strings for the DOM or CSS.
+**Prevention:** Always sanitize data used in `dangerouslySetInnerHTML`. For CSS selectors and variable names, use a strict whitelist (e.g., alphanumeric and dashes). For CSS values, strip characters that can break out of the rule context (like `;`, `{`, `}`). Always quote attribute selectors in CSS.
