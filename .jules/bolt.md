@@ -1,0 +1,3 @@
+## 2025-02-23 - Dashboard 1-Second Timer Tick Calculation Overhead
+**Learning:** In applications with global or context-level timer ticks (such as `FocusContext`), components consuming timer context re-render every second. Top-level analytics helpers (`getCoachInsight`, `getWeeklyFocus`, `getDelayedHighPriority`) and array filter/sort passes run on every tick if unmemoized.
+**Action:** Consolidate component-level derived state and analytics helper calls into a single `useMemo` block keyed on underlying data collections (`tasks`, `habits`, `sessions`, `profile`) to make 1-second re-renders completely free.
