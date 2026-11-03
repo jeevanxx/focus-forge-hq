@@ -79,7 +79,7 @@ ${colorConfig
   })
   .join("\n")}
 }
-`,
+`.replace(/<\/?style[^>]*>/gi, ""), // Prevent breaking out of <style> tag
           )
           .join("\n"),
       }}
