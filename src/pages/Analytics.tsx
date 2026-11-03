@@ -30,12 +30,16 @@ const Analytics = () => {
   const { start } = useFocus();
 
   const weekly = getWeeklyFocus(sessions, now);
-  const totalMin = getWeeklyFocusTotal(sessions, now);
+  const totalMin = getWeeklyFocusTotal(sessions, now, weekly);
   const completion = getCompletionRate(tasks);
   const delayed = getDelayedHighPriority(tasks, now);
   const window = getBestFocusWindow(sessions);
   const avgSession = getAverageSessionLength(sessions);
-  const score = getProductivityScore(tasks, sessions, habits, now);
+  const score = getProductivityScore(tasks, sessions, habits, now, {
+    completionRate: completion,
+    weeklyFocusTotal: totalMin,
+    delayedCount: delayed.count,
+  });
   const next = getNextBestAction(tasks, now);
 
   const maxBar = Math.max(...weekly.map((d) => d.minutes), 1);
