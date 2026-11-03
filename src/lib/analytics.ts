@@ -83,14 +83,38 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
-  });
+
+  // Create an array of 7 dates representing the days of the target week, formatted as "yyyy-MM-dd" keys.
+  // This allows us to map each date key to its target index in the output array in O(1) time.
+  const weekKeys = new Array<string>(7);
+  const keyToIdxMap = new Map<string, number>();
+  for (let i = 0; i < 7; i++) {
+    const key = format(addDays(weekStart, i), "yyyy-MM-dd");
+    weekKeys[i] = key;
+    keyToIdxMap.set(key, i);
+  }
+
+  // Pre-fill our result array with zero-initialized entries for each day of the week.
+  // This ensures a consistent structure and avoids missing-key checks during accumulation.
+  const result: DailyFocus[] = WEEK_LABELS.map((day, i) => ({
+    day,
+    date: weekKeys[i],
+    minutes: 0,
+  }));
+
+  // Perform a single-pass O(N) iteration over the sessions array.
+  // We parse and format the date of each session exactly once.
+  // If the session matches a day in the target week, accumulate its duration.
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i];
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    const idx = keyToIdxMap.get(dateKey);
+    if (idx !== undefined) {
+      result[idx].minutes += s.durationMin;
+    }
+  }
+
+  return result;
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
