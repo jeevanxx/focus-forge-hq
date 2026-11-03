@@ -19,6 +19,17 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
+function sanitizeId(id: string) {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeCssValue(value: string) {
+  // Allow common color characters but block characters that could break out of a CSS rule or declaration
+  // Allow: alphanumeric, #, (), ,, ., %, spaces, -
+  // Block: ; { } [ ] " < > \ :
+  return value.replace(/[;{}[\]"<>\s\\:]/g, "").trim();
+}
+
 function useChart() {
   const context = React.useContext(ChartContext);
 
@@ -37,7 +48,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${sanitizeId(id || uniqueId.replace(/:/g, ""))}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -71,11 +82,13 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${id}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeKey = sanitizeId(key);
+    const safeColor = color ? sanitizeCssValue(color) : null;
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
