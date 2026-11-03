@@ -83,18 +83,38 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekDates = WEEK_LABELS.map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
+  const weekSet = new Set(weekDates);
+
+  // O(N) single-pass aggregation using Map for bucketing
+  const totals = new Map<string, number>();
+  for (const s of sessions) {
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    if (weekSet.has(dateKey)) {
+      totals.set(dateKey, (totals.get(dateKey) || 0) + s.durationMin);
+    }
+  }
+
   return WEEK_LABELS.map((day, i) => {
-    const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    const dateKey = weekDates[i];
+    return { day, date: dateKey, minutes: totals.get(dateKey) || 0 };
   });
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (sessions: FocusSession[], now: Date = new Date()): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekSet = new Set(WEEK_LABELS.map((_, i) => format(addDays(weekStart, i), "yyyy-MM-dd")));
+
+  // O(N) single-pass total calculation to avoid overhead of creating full DailyFocus array
+  let total = 0;
+  for (const s of sessions) {
+    const dateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    if (weekSet.has(dateKey)) {
+      total += s.durationMin;
+    }
+  }
+  return total;
+};
 
 // ---------- 2. Completion rate ----------
 
