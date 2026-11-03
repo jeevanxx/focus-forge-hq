@@ -37,7 +37,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`.replace(/[^a-zA-Z0-9-_]/g, "");
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -69,18 +69,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+          .map(([theme, prefix]) => {
+            return `
+${prefix} [data-chart="${id}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    // Sanitize the key to prevent CSS declaration breakout
+    const safeKey = key.replace(/[^a-zA-Z0-9-_]/g, "");
+    // Sanitize the color value to prevent CSS declaration breakout
+    // Allowing common CSS color characters but blocking rule-breakout characters
+    const safeColor = color?.replace(/[;{}[\]"':<>]/g, "");
+    return color ? `  --color-${safeKey}: ${safeColor};` : null;
   })
   .join("\n")}
 }
-`,
-          )
+`;
+          })
           .join("\n"),
       }}
     />
