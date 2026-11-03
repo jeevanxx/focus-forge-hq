@@ -58,6 +58,21 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+function sanitizeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeColor(color: string): string {
+  if (!color) return "";
+  let sanitized = color.replace(/url\([^)]*\)/gi, "");
+  sanitized = sanitized.replace(/[;{}[\]"'<>\\]/g, "");
+  return sanitized.trim();
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
@@ -65,18 +80,23 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  const cleanId = sanitizeId(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${cleanId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const cleanKey = sanitizeKey(key);
+    const cleanColor = color ? sanitizeColor(color) : null;
+    return cleanColor ? `  --color-${cleanKey}: ${cleanColor};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
