@@ -83,12 +83,20 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+
+  // Single-pass O(N) aggregation: map formatted date key ("yyyy-MM-dd") to total focus minutes
+  // Reduces execution time from O(7N) nested filtering/formatting to O(N) single-pass lookup.
+  const minutesByDateKey = new Map<string, number>();
+  for (let i = 0; i < sessions.length; i++) {
+    const session = sessions[i];
+    const key = format(parseISO(session.date), "yyyy-MM-dd");
+    minutesByDateKey.set(key, (minutesByDateKey.get(key) ?? 0) + session.durationMin);
+  }
+
   return WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
     const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
+    const minutes = minutesByDateKey.get(dateKey) ?? 0;
     return { day, date: dateKey, minutes };
   });
 };
