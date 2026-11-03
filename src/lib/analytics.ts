@@ -83,18 +83,46 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekDates = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return {
+      day,
+      date: format(date, "yyyy-MM-dd"),
+      minutes: 0,
+    };
   });
+
+  // Optimization: Single pass over sessions + O(1) lookup map
+  const dateMap = new Map(weekDates.map((d) => [d.date, d]));
+
+  for (const s of sessions) {
+    // String slice is faster than format(parseISO()) for date comparison
+    const sessionDate = s.date.slice(0, 10);
+    const dayData = dateMap.get(sessionDate);
+    if (dayData) {
+      dayData.minutes += s.durationMin;
+    }
+  }
+
+  return weekDates;
 };
 
-export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
-  getWeeklyFocus(sessions, now).reduce((s, d) => s + d.minutes, 0);
+export const getWeeklyFocusTotal = (
+  sessions: FocusSession[],
+  now: Date = new Date()
+): number => {
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
+  const weekEnd = addDays(new Date(weekStart), 7).getTime();
+
+  // Optimization: Single pass with timestamp comparison
+  return sessions.reduce((sum, s) => {
+    const t = parseISO(s.date).getTime();
+    if (t >= weekStart && t < weekEnd) {
+      return sum + s.durationMin;
+    }
+    return sum;
+  }, 0);
+};
 
 // ---------- 2. Completion rate ----------
 
