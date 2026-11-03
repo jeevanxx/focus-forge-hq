@@ -1,0 +1,4 @@
+## 2026-05-11 - Dynamic CSS Injection in ChartStyle Component
+**Vulnerability:** Attackers could inject arbitrary CSS rules or execute malicious HTML breaks when user-controlled/dynamic properties (such as custom keys, IDs, or variable colors) were rendered directly inside a raw `<style>` element using `dangerouslySetInnerHTML`.
+**Learning:** `dangerouslySetInnerHTML` inside dynamic stylesheet generators creates a prime vehicle for markup escaping or CSS rule modification if dynamic properties are parsed raw.
+**Prevention:** Sanitize dynamically generated IDs and custom keys with highly restrictive regular expressions (e.g. alphanumeric plus dashes/underscores), and sanitize dynamic color strings to strictly strip characters capable of closing elements or opening fresh style rules (like `; { } [ ] " ' < > \ \``).
