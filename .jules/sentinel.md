@@ -1,0 +1,4 @@
+## 2026-08-05 - Chart CSS and HTML Injection via Config Keys and Colors
+**Vulnerability:** Chart style variables were dynamically generated using custom config keys and color values without sanitization, exposing the app to CSS breakout/injection and HTML tag breakout via dangerouslySetInnerHTML.
+**Learning:** React component configurations that serialize user-controlled or third-party properties directly into global style tags (dangerouslySetInnerHTML) can bypass virtual DOM protections and execute arbitrary styles or scripts if breakout characters like `;`, `{`, `}` are not properly sanitized.
+**Prevention:** Always sanitize dynamic inputs mapped directly into style blocks, enforcing strict alphanumeric/dash/underscore whitelists for identifier keys, and stripping critical breakout characters for value properties.
