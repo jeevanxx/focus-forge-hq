@@ -6,6 +6,22 @@ import { cn } from "@/lib/utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
+// Helper sanitization functions to prevent CSS injection, HTML tag breakout, and SSRF/tracking pixel leaks
+function sanitizeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function sanitizeColor(color: string): string {
+  if (/\burl\s*\(/i.test(color)) {
+    return "";
+  }
+  return color.replace(/[:;{}[\]"'<>\\`]/g, "");
+}
+
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
@@ -37,7 +53,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = sanitizeId(`chart-${id || uniqueId.replace(/:/g, "")}`);
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -59,6 +75,7 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const safeId = sanitizeId(id);
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
@@ -71,12 +88,15 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
+    const safeKey = sanitizeKey(key);
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    const safeColor = color ? sanitizeColor(color) : null;
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
