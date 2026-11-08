@@ -83,14 +83,31 @@ export const getWeeklyFocus = (
   now: Date = new Date()
 ): DailyFocus[] => {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  return WEEK_LABELS.map((day, i) => {
+  const weekDays = WEEK_LABELS.map((day, i) => {
     const date = addDays(weekStart, i);
-    const dateKey = format(date, "yyyy-MM-dd");
-    const minutes = sessions
-      .filter((s) => format(parseISO(s.date), "yyyy-MM-dd") === dateKey)
-      .reduce((sum, s) => sum + s.durationMin, 0);
-    return { day, date: dateKey, minutes };
+    return { day, dateKey: format(date, "yyyy-MM-dd") };
   });
+
+  // Performance optimization (Bolt ⚡):
+  // Instead of scanning all sessions 7 times with nested filter/parseISO/format calls (O(7N)),
+  // build a Map in a single pass O(N) and look up totals.
+  // Maintains local timezone correctness via format(parseISO(s.date), "yyyy-MM-dd").
+  // Expected speedup: ~7-8x faster execution on focus session arrays.
+  const weekDayKeys = new Set(weekDays.map((w) => w.dateKey));
+  const minutesByDate = new Map<string, number>();
+
+  for (const s of sessions) {
+    const sDateKey = format(parseISO(s.date), "yyyy-MM-dd");
+    if (weekDayKeys.has(sDateKey)) {
+      minutesByDate.set(sDateKey, (minutesByDate.get(sDateKey) ?? 0) + s.durationMin);
+    }
+  }
+
+  return weekDays.map(({ day, dateKey }) => ({
+    day,
+    date: dateKey,
+    minutes: minutesByDate.get(dateKey) ?? 0,
+  }));
 };
 
 export const getWeeklyFocusTotal = (sessions: FocusSession[], now?: Date): number =>
