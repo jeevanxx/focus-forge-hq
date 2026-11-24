@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, X, Send, Play, AlertTriangle, Target, Trash2 } from "lucide-react";
+import { Sparkles, X, Send, Play, AlertTriangle, Target, Trash2, Mic, Square, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { recordWav, speakCoachReply, transcribeVoice } from "@/lib/voice";
 import { useTasks } from "@/hooks/useTasks";
 import { useHabits } from "@/hooks/useHabits";
 import { useFocusSessions } from "@/hooks/useFocusSessions";
@@ -17,6 +18,9 @@ interface Msg {
   text: string;
   tone?: "directive" | "warning" | "default";
 }
+
+type VoiceRecorder = Awaited<ReturnType<typeof recordWav>>;
+type VoiceState = "idle" | "recording" | "transcribing" | "speaking";
 
 const quickPrompts = [
   "What should I do RIGHT NOW?",
@@ -46,7 +50,12 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recorderRef = useRef<VoiceRecorder | null>(null);
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechAbortRef = useRef<AbortController | null>(null);
 
   const now = new Date();
   const todayKey = format(now, "yyyy-MM-dd");
@@ -84,7 +93,35 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
   }, [messages, thinking]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const ask = async (text: string, _history: Msg[], persistPrompt = true) => {
+  const addWarning = (text: string) => {
+    setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", text, tone: "warning" }]);
+  };
+
+  const playReply = async (message: Msg) => {
+    speechAbortRef.current?.abort();
+    const controller = new AbortController();
+    speechAbortRef.current = controller;
+    setSpeakingMessageId(message.id);
+    setVoiceState("speaking");
+    try {
+      const spokenText = message.text
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/[`*_>#-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (spokenText) await speakCoachReply(spokenText, controller.signal);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        addWarning(`I couldn't play that reply aloud: ${(error as Error).message || "Please try again."}`);
+      }
+    } finally {
+      if (speechAbortRef.current === controller) speechAbortRef.current = null;
+      setSpeakingMessageId(null);
+      setVoiceState("idle");
+    }
+  };
+
+  const ask = async (text: string, _history: Msg[], persistPrompt = true, voiceReply = false) => {
     setThinking(true);
     try {
       const { data, error } = await supabase.functions.invoke("coach", {
@@ -92,10 +129,9 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setMessages((m) => [
-        ...m,
-        { id: crypto.randomUUID(), role: "assistant", text: data.reply, tone: "directive" },
-      ]);
+      const reply: Msg = { id: crypto.randomUUID(), role: "assistant", text: data.reply, tone: "directive" };
+      setMessages((m) => [...m, reply]);
+      if (voiceReply) void playReply(reply);
     } catch (e) {
       setMessages((m) => [
         ...m,
@@ -144,14 +180,62 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
     setMessages([]);
   };
 
-  const send = (text: string) => {
+  const send = (text: string, voiceReply = false) => {
     if (!text.trim() || thinking || !loaded) return;
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text };
     const history = messages;
     setMessages((m) => [...m, userMsg]);
     setInput("");
-    ask(text, history);
+    void ask(text, history, true, voiceReply);
   };
+
+  const stopRecordingAndSend = async () => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    recorderRef.current = null;
+    if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+    recordingTimeoutRef.current = null;
+    setVoiceState("transcribing");
+    try {
+      const audio = await recorder.stop();
+      const transcript = await transcribeVoice(audio);
+      if (!transcript.trim()) throw new Error("I didn't catch that. Please try speaking again.");
+      setVoiceState("idle");
+      send(transcript, true);
+    } catch (error) {
+      setVoiceState("idle");
+      addWarning(`Voice message couldn't be sent: ${(error as Error).message || "Please try again."}`);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (voiceState === "recording") {
+      await stopRecordingAndSend();
+      return;
+    }
+    if (voiceState !== "idle" || thinking) return;
+    try {
+      recorderRef.current = await recordWav();
+      setVoiceState("recording");
+      recordingTimeoutRef.current = setTimeout(() => void stopRecordingAndSend(), 60_000);
+    } catch (error) {
+      recorderRef.current = null;
+      addWarning(`Microphone unavailable: ${(error as Error).message || "Check microphone permission and try again."}`);
+    }
+  };
+
+  useEffect(() => {
+    if (open) return;
+    speechAbortRef.current?.abort();
+    speechAbortRef.current = null;
+    if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+    recordingTimeoutRef.current = null;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) void recorder.stop().catch(() => undefined);
+    setVoiceState("idle");
+    setSpeakingMessageId(null);
+  }, [open]);
 
   const startNow = () => {
     start({
@@ -246,6 +330,23 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
                   >
                     {renderText(m.text)}
                   </div>
+                  {m.role === "assistant" && m.tone !== "warning" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (speakingMessageId === m.id) {
+                          speechAbortRef.current?.abort();
+                          return;
+                        }
+                        void playReply(m);
+                      }}
+                      aria-label={speakingMessageId === m.id ? "Stop spoken reply" : "Play spoken reply"}
+                      title={speakingMessageId === m.id ? "Stop spoken reply" : "Play spoken reply"}
+                      className="press ml-1 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      {speakingMessageId === m.id ? <Square className="h-3.5 w-3.5" /> : <Volume2 className="h-4 w-4" />}
+                    </button>
+                  )}
                 </motion.div>
               ))}
               {thinking && (
@@ -289,6 +390,14 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
               onSubmit={(e) => { e.preventDefault(); send(input); }}
               className="relative p-3 border-t border-border-strong bg-background/40 backdrop-blur-xl"
             >
+              {voiceState !== "idle" && (
+                <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+                  {voiceState === "recording" && <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />}
+                  {voiceState === "recording" && "Recording — tap the microphone to send"}
+                  {voiceState === "transcribing" && "Transcribing your message…"}
+                  {voiceState === "speaking" && "Speaking the coach’s reply…"}
+                </div>
+              )}
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background border border-border focus-within:border-primary/50 focus-within:shadow-glow-primary transition-all">
                 <input
                   value={input}
@@ -296,6 +405,22 @@ export const AssistantPanel = ({ open, onClose }: { open: boolean; onClose: () =
                   placeholder="Ask about your tasks, or just chat..."
                   className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
                 />
+                <button
+                  type="button"
+                  onClick={() => void toggleRecording()}
+                  disabled={(voiceState !== "idle" && voiceState !== "recording") || thinking}
+                  aria-label={voiceState === "recording" ? "Stop recording and send" : "Start voice chat"}
+                  aria-pressed={voiceState === "recording"}
+                  title={voiceState === "recording" ? "Stop recording and send" : "Start voice chat"}
+                  className={cn(
+                    "press grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors disabled:opacity-40",
+                    voiceState === "recording"
+                      ? "border-destructive/40 bg-destructive/10 text-destructive"
+                      : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  {voiceState === "recording" ? <Square className="h-3.5 w-3.5" /> : <Mic className="h-4 w-4" />}
+                </button>
                 <button
                   type="submit"
                   disabled={!input.trim() || thinking}
